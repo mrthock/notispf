@@ -292,12 +292,20 @@ class App:
             self.prefix_area._pending.clear()
             self.prefix_area.cancel_open_block()
 
-        elif key == ord('\t') or key == curses.KEY_BTAB:
-            # Tab / Shift+Tab: exit prefix mode back to text area (keep staged)
+        elif key == ord('\t'):
+            # Tab: prefix(N) -> text(N)
             self._stage_current_prefix()
             vs.prefix_mode = False
             vs.prefix_input = ""
             vs.message = ""
+
+        elif key == curses.KEY_BTAB:
+            # Shift+Tab: prefix(N) -> text(N-1)
+            self._stage_current_prefix()
+            vs.prefix_mode = False
+            vs.prefix_input = ""
+            vs.message = ""
+            self._move_cursor(-1)
 
         elif key == curses.KEY_BACKSPACE or key == 127:
             vs.prefix_input = vs.prefix_input[:-1]

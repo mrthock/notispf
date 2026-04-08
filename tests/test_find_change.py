@@ -190,6 +190,39 @@ def test_delete_case_sensitive(engine, buf):
     assert buf.lines[2].text == "The fox said hello"   # lowercase survives
 
 
+def test_exclude_matching_all(engine, buf):
+    n = engine.exclude_matching("fox")
+    assert n == 2
+    assert buf.lines[0].excluded is True
+    assert buf.lines[2].excluded is True
+    assert buf.lines[1].excluded is False
+
+
+def test_exclude_matching_limit(engine, buf):
+    n = engine.exclude_matching("fox", limit=1)
+    assert n == 1
+    assert buf.lines[0].excluded is True
+    assert buf.lines[2].excluded is False
+
+
+def test_exclude_matching_no_match(engine, buf):
+    n = engine.exclude_matching("zzznomatch")
+    assert n == 0
+
+
+def test_exclude_matching_skips_already_excluded(engine, buf):
+    buf.lines[0].excluded = True
+    n = engine.exclude_matching("fox")
+    assert n == 1   # only line 2, line 0 already excluded
+
+
+def test_exclude_matching_case_sensitive(engine, buf):
+    n = engine.exclude_matching("HELLO", case_sensitive=True)
+    assert n == 1
+    assert buf.lines[3].excluded is True
+    assert buf.lines[2].excluded is False
+
+
 def test_delete_excluded(engine, buf):
     buf.lines[1].excluded = True
     buf.lines[3].excluded = True

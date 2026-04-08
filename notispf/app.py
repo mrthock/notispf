@@ -221,6 +221,28 @@ class App:
             except Exception as e:
                 return f"Save error: {e}"
 
+        if cmd == "EXCLUDE":
+            try:
+                orig_tokens = shlex.split(raw)
+            except ValueError:
+                return f"Parse error: {raw}"
+            if len(orig_tokens) < 2:
+                return 'Usage: EXCLUDE "pattern" [ALL | n]'
+            pattern = orig_tokens[1]
+            rest = orig_tokens[2:]
+            if rest:
+                if rest[0].upper() == "ALL":
+                    limit = None
+                else:
+                    try:
+                        limit = int(rest[0])
+                    except ValueError:
+                        return f"Invalid count: {rest[0]}"
+            else:
+                limit = 1
+            n = self.find_engine.exclude_matching(pattern, limit=limit)
+            return f"{n} line(s) excluded" if n else f"Not found: {pattern!r}"
+
         if cmd == "DELETE":
             try:
                 orig_tokens = shlex.split(raw)

@@ -82,6 +82,23 @@ class FindChangeEngine:
         return count
 
 
+    def exclude_matching(self, pattern: str, limit: int | None = None,
+                         case_sensitive: bool = False) -> int:
+        """Exclude lines containing pattern from display.
+        limit=None means exclude all matches. Returns count excluded."""
+        needle = pattern if case_sensitive else pattern.lower()
+        count = 0
+        for i, line in enumerate(self.buffer.lines):
+            if line.excluded:
+                continue
+            haystack = line.text if case_sensitive else line.text.lower()
+            if needle in haystack:
+                self.buffer.lines[i].excluded = True
+                count += 1
+                if limit is not None and count >= limit:
+                    break
+        return count
+
     def delete_excluded(self) -> int:
         """Delete all excluded lines. Returns count of lines deleted."""
         to_delete = [i for i, line in enumerate(self.buffer.lines) if line.excluded]

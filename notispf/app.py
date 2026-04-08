@@ -226,6 +226,24 @@ class App:
             self.buffer.show_all()
             return "All lines shown"
 
+        if cmd == "COPY":
+            try:
+                orig_tokens = shlex.split(raw)
+            except ValueError:
+                return f"Parse error: {raw}"
+            if len(orig_tokens) < 2:
+                return "Usage: COPY filename"
+            dest = orig_tokens[1]
+            try:
+                saved_filepath = self.buffer.filepath
+                saved_modified = self.buffer.modified
+                self.buffer.save_file(dest)
+                self.buffer.filepath = saved_filepath
+                self.buffer.modified = saved_modified
+                return f"Copied to: {dest}"
+            except Exception as e:
+                return f"Copy error: {e}"
+
         if cmd in ("SAVE", "FILE"):
             try:
                 self.buffer.save_file()

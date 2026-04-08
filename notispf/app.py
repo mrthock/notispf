@@ -295,19 +295,28 @@ class App:
 
         if cmd == "FIND":
             if len(tokens) < 2:
-                return "Usage: FIND <text>"
+                return "Usage: FIND <text> [column]"
             # Re-parse preserving original case
             try:
                 orig_tokens = shlex.split(raw)
             except ValueError:
                 return f"Parse error: {raw}"
             pattern = orig_tokens[1] if len(orig_tokens) > 1 else ""
-            pos = self.find_engine.find_next(pattern)
+            # Optional column number — last token if it's a positive integer
+            find_col = None
+            if len(orig_tokens) > 2:
+                last = orig_tokens[-1]
+                if last.isdigit() and int(last) >= 1:
+                    find_col = int(last)
+            pos = self.find_engine.find_next(pattern, col=find_col)
             if pos:
                 self.vs.cursor_line, self.vs.cursor_col = pos
                 self._scroll_to_cursor()
-                return f"Found: {pattern!r}"
-            return f"Not found: {pattern!r}"
+                self._scroll_col_to_cursor()
+                col_msg = f" at column {find_col}" if find_col else ""
+                return f"Found: {pattern!r}{col_msg}"
+            col_msg = f" at column {find_col}" if find_col else ""
+            return f"Not found: {pattern!r}{col_msg}"
 
         if cmd == "CHANGE":
             try:
@@ -315,25 +324,34 @@ class App:
             except ValueError:
                 return f"Parse error: {raw}"
             if len(orig_tokens) < 3:
-                return 'Usage: CHANGE "old" "new" [ALL] [.lbl1 .lbl2]'
+                return 'Usage: CHANGE "old" "new" [ALL] [.lbl1 .lbl2] [column]'
             old, new = orig_tokens[1], orig_tokens[2]
             rest = [t.upper() for t in orig_tokens[3:]]
+            # Extract optional column number — any token that is a positive integer
+            change_col = None
+            rest_no_col = []
+            for t in rest:
+                if t.isdigit() and int(t) >= 1:
+                    change_col = int(t)
+                else:
+                    rest_no_col.append(t)
+            rest = rest_no_col
             try:
                 if "ALL" in rest:
                     labels = [t for t in rest if t.startswith(".")]
                     if len(labels) >= 2:
                         n = self.find_engine.change_in_range(
-                            old, new, labels[0], labels[1])
+                            old, new, labels[0], labels[1], col=change_col)
                     else:
-                        n = self.find_engine.change_all(old, new)
+                        n = self.find_engine.change_all(old, new, col=change_col)
                     return f"{n} change(s) made"
                 else:
                     labels = [t for t in rest if t.startswith(".")]
                     if len(labels) >= 2:
                         n = self.find_engine.change_in_range(
-                            old, new, labels[0], labels[1])
+                            old, new, labels[0], labels[1], col=change_col)
                         return f"{n} change(s) made"
-                    n = self.find_engine.change_next(old, new)
+                    n = self.find_engine.change_next(old, new, col=change_col)
                     return f"{n} change(s) made" if n else f"Not found: {old!r}"
             except ValueError as e:
                 return str(e)

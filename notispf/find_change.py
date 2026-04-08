@@ -10,10 +10,18 @@ class FindChangeEngine:
         self._last_pos: tuple[int, int] = (0, 0)
 
     def find_next(self, pattern: str, from_pos: tuple[int, int] | None = None,
-                  case_sensitive: bool = False) -> tuple[int, int] | None:
+                  case_sensitive: bool = False,
+                  col: int | None = None) -> tuple[int, int] | None:
+        """Find pattern, optionally restricted to a specific column.
+
+        col is 1-based (ISPF convention). When given, the pattern must begin
+        at exactly that column — lines where it appears elsewhere are skipped.
+        """
         self._last_find = pattern
         start_line, start_col = from_pos or self._last_pos
         needle = pattern if case_sensitive else pattern.lower()
+        # Convert 1-based col to 0-based index
+        required_col = (col - 1) if col is not None else None
 
         for i in range(len(self.buffer)):
             line_idx = (start_line + i) % len(self.buffer)
@@ -21,43 +29,63 @@ class FindChangeEngine:
                 continue
             text = self.buffer.lines[line_idx].text
             haystack = text if case_sensitive else text.lower()
-            search_from = start_col if i == 0 else 0
-            col = haystack.find(needle, search_from)
-            if col != -1:
-                self._last_pos = (line_idx, col + len(pattern))
-                return (line_idx, col)
+
+            if required_col is not None:
+                # Pattern must start at exactly the required column
+                if haystack[required_col:required_col + len(needle)] == needle:
+                    self._last_pos = (line_idx, required_col + len(pattern))
+                    return (line_idx, required_col)
+            else:
+                search_from = start_col if i == 0 else 0
+                found_col = haystack.find(needle, search_from)
+                if found_col != -1:
+                    self._last_pos = (line_idx, found_col + len(pattern))
+                    return (line_idx, found_col)
         return None
 
     def change_next(self, old: str, new: str,
-                    case_sensitive: bool = False) -> int:
-        pos = self.find_next(old, self._last_pos, case_sensitive)
+                    case_sensitive: bool = False,
+                    col: int | None = None) -> int:
+        pos = self.find_next(old, self._last_pos, case_sensitive, col=col)
         if pos is None:
             return 0
-        line_idx, col = pos
+        line_idx, match_col = pos
         text = self.buffer.lines[line_idx].text
-        new_text = text[:col] + new + text[col + len(old):]
+        new_text = text[:match_col] + new + text[match_col + len(old):]
         self.buffer.replace_line(line_idx, new_text)
         return 1
 
     def change_all(self, old: str, new: str,
-                   case_sensitive: bool = False) -> int:
+                   case_sensitive: bool = False,
+                   col: int | None = None) -> int:
+        """Replace all occurrences. If col is given (1-based), only replace
+        occurrences that start at exactly that column."""
         count = 0
         needle = old if case_sensitive else old.lower()
+        required_col = (col - 1) if col is not None else None
+
         for i, line in enumerate(self.buffer.lines):
             if line.excluded:
                 continue
             text = line.text
             haystack = text if case_sensitive else text.lower()
-            if needle in haystack:
-                new_text = _replace_all_nocase(text, old, new) if not case_sensitive \
-                    else text.replace(old, new)
-                self.buffer.replace_line(i, new_text)
-                count += (text if case_sensitive else text.lower()).count(needle)
+            if required_col is not None:
+                if haystack[required_col:required_col + len(needle)] == needle:
+                    new_text = text[:required_col] + new + text[required_col + len(old):]
+                    self.buffer.replace_line(i, new_text)
+                    count += 1
+            else:
+                if needle in haystack:
+                    new_text = _replace_all_nocase(text, old, new) if not case_sensitive \
+                        else text.replace(old, new)
+                    self.buffer.replace_line(i, new_text)
+                    count += haystack.count(needle)
         return count
 
     def change_in_range(self, old: str, new: str,
                         label_start: str, label_end: str,
-                        case_sensitive: bool = False) -> int:
+                        case_sensitive: bool = False,
+                        col: int | None = None) -> int:
         start_idx = self.buffer.get_label_index(label_start)
         end_idx = self.buffer.get_label_index(label_end)
         if start_idx is None:
@@ -69,16 +97,24 @@ class FindChangeEngine:
 
         count = 0
         needle = old if case_sensitive else old.lower()
+        required_col = (col - 1) if col is not None else None
+
         for i in range(start_idx, end_idx + 1):
             if self.buffer.lines[i].excluded:
                 continue
             text = self.buffer.lines[i].text
             haystack = text if case_sensitive else text.lower()
-            if needle in haystack:
-                new_text = _replace_all_nocase(text, old, new) if not case_sensitive \
-                    else text.replace(old, new)
-                self.buffer.replace_line(i, new_text)
-                count += haystack.count(needle)
+            if required_col is not None:
+                if haystack[required_col:required_col + len(needle)] == needle:
+                    new_text = text[:required_col] + new + text[required_col + len(old):]
+                    self.buffer.replace_line(i, new_text)
+                    count += 1
+            else:
+                if needle in haystack:
+                    new_text = _replace_all_nocase(text, old, new) if not case_sensitive \
+                        else text.replace(old, new)
+                    self.buffer.replace_line(i, new_text)
+                    count += haystack.count(needle)
         return count
 
 

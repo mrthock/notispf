@@ -33,6 +33,7 @@ class App:
             screen_rows=24,
             screen_cols=80,
         )
+        self._quit_flag = False
 
     def _new_buffer(self, filepath: str) -> Buffer:
         buf = Buffer()
@@ -49,7 +50,7 @@ class App:
 
         while True:
             key = stdscr.getch()
-            if self._handle_key(key):
+            if self._handle_key(key) or self._quit_flag:
                 break
             self._render()
 
@@ -111,7 +112,6 @@ class App:
 
         # F12 = CANCEL (quit without saving)
         elif key == curses.KEY_F12:
-            self.display.close()
             return True
 
         # F5 = save without quit
@@ -169,18 +169,15 @@ class App:
         cmd = tokens[0] if tokens else ""
 
         if cmd in ("CANCEL", "QUIT"):
-            self.display.close()
-            raise SystemExit(0)
+            self._quit_flag = True
+            return ""
 
         if cmd in ("SAVE", "FILE"):
             try:
                 self.buffer.save_file()
                 if cmd == "FILE":
-                    self.display.close()
-                    raise SystemExit(0)
+                    self._quit_flag = True
                 return f"Saved: {self.buffer.filepath}"
-            except SystemExit:
-                raise
             except Exception as e:
                 return f"Save error: {e}"
 
@@ -248,7 +245,6 @@ class App:
                 self.buffer.save_file()
             except Exception:
                 pass
-        self.display.close()
 
     # ------------------------------------------------------------------
     # Text editing helpers (basic, Phase 6 will flesh these out)

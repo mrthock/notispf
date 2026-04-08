@@ -200,4 +200,4 @@ class Display:
             pass   # writing to last cell of last row raises harmlessly
 
     def close(self) -> None:
-        curses.endwin()
+        pass  # curses.wrapper handles endwin() on exit

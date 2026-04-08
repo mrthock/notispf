@@ -13,6 +13,7 @@ _CP_MODIFIED = 5   # modified-line indicator in prefix
 _CP_MSG      = 6   # message line
 _CP_CMD      = 7   # command input line
 _CP_CURSOR   = 8   # current line highlight
+_CP_RULER    = 9   # column ruler
 
 
 @dataclass
@@ -30,6 +31,8 @@ class ViewState:
     command_mode: bool = False  # True when cursor is in command line
     prefix_mode: bool = False   # True when cursor is in prefix column
     prefix_input: str = ""      # what user has typed in prefix column so far
+    show_cols: bool = False     # True when column ruler is visible
+    col_offset: int = 0        # horizontal scroll offset (columns shifted left)
 
 
 # Layout constants
@@ -56,6 +59,7 @@ class Display:
         curses.init_pair(_CP_MSG,      curses.COLOR_BLACK,  curses.COLOR_YELLOW)
         curses.init_pair(_CP_CMD,      curses.COLOR_BLACK,  curses.COLOR_WHITE)
         curses.init_pair(_CP_CURSOR,   -1,                  curses.COLOR_BLUE)
+        curses.init_pair(_CP_RULER,    curses.COLOR_BLACK,  curses.COLOR_WHITE)
 
         self.stdscr.keypad(True)
 
@@ -114,14 +118,35 @@ class Display:
                 entries.append(('fold', start, i - 1, i - start))
         return entries
 
+    @staticmethod
+    def _build_ruler(width: int) -> str:
+        """Build an ISPF-style column ruler for the given text width."""
+        ruler = []
+        for col in range(1, width + 1):
+            if col % 10 == 0:
+                ruler.append(str(col // 10 % 10))
+            elif col % 5 == 0:
+                ruler.append('+')
+            else:
+                ruler.append('-')
+        return ''.join(ruler)
+
     def _render_content(self, buffer, prefix_area, vs: ViewState,
                         rows: int, cols: int) -> None:
         content_rows = rows - 2
         text_width = cols - TEXT_OFFSET
-        view = self.build_view(buffer, vs.top_line, content_rows)
+        ruler_offset = 1 if vs.show_cols else 0
+        view = self.build_view(buffer, vs.top_line, content_rows - ruler_offset)
 
-        for screen_row in range(content_rows):
-            row = screen_row + 1
+        if vs.show_cols:
+            ruler = self._build_ruler(vs.col_offset + text_width)
+            ruler_slice = ruler[vs.col_offset:vs.col_offset + text_width]
+            self._addstr_clipped(1, 0, "COLS  ", curses.color_pair(_CP_RULER))
+            self._addstr_clipped(1, PREFIX_WIDTH, "|", curses.color_pair(_CP_RULER))
+            self._addstr_clipped(1, TEXT_OFFSET, ruler_slice, curses.color_pair(_CP_RULER))
+
+        for screen_row in range(content_rows - ruler_offset):
+            row = screen_row + 1 + ruler_offset
 
             if screen_row >= len(view):
                 # Past end of file
@@ -163,7 +188,8 @@ class Display:
                                  curses.color_pair(_CP_SEP))
 
             text = buffer.lines[buf_idx].text
-            display_text = text[:text_width].ljust(text_width)[:text_width]
+            scrolled = text[vs.col_offset:] if vs.col_offset < len(text) else ""
+            display_text = scrolled[:text_width].ljust(text_width)[:text_width]
             text_attr = curses.color_pair(_CP_CURSOR) if is_cursor_line \
                 else curses.color_pair(_CP_TEXT)
             self._addstr_clipped(row, TEXT_OFFSET, display_text, text_attr)
@@ -206,7 +232,8 @@ class Display:
             except curses.error:
                 pass
         elif vs.prefix_mode:
-            screen_row = vs.cursor_line - vs.top_line + 1
+            ruler_offset = 1 if vs.show_cols else 0
+            screen_row = vs.cursor_line - vs.top_line + 1 + ruler_offset
             screen_col = min(len(vs.prefix_input), PREFIX_WIDTH - 1)
             if 0 < screen_row < rows - 1:
                 try:
@@ -214,9 +241,10 @@ class Display:
                 except curses.error:
                     pass
         else:
-            screen_row = vs.cursor_line - vs.top_line + 1
-            screen_col = TEXT_OFFSET + vs.cursor_col
-            if 0 < screen_row < rows - 1 and screen_col < vs.screen_cols:
+            ruler_offset = 1 if vs.show_cols else 0
+            screen_row = vs.cursor_line - vs.top_line + 1 + ruler_offset
+            screen_col = TEXT_OFFSET + vs.cursor_col - vs.col_offset
+            if 0 < screen_row < rows - 1 and TEXT_OFFSET <= screen_col < vs.screen_cols:
                 try:
                     self.stdscr.move(screen_row, screen_col)
                 except curses.error:

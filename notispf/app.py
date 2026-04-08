@@ -85,29 +85,37 @@ class App:
             return self._handle_prefix_key(key)
 
         rows, _ = self.display.stdscr.getmaxyx()
-        content_rows = rows - 2
+        content_rows = rows - 2 - (1 if vs.show_cols else 0)
 
         # Navigation
         if key == curses.KEY_UP:
             self._move_cursor(-1)
         elif key == curses.KEY_DOWN:
             self._move_cursor(1)
-        elif key == curses.KEY_PPAGE:       # Page Up
+        elif key in (curses.KEY_PPAGE, curses.KEY_F7):   # Page Up
             self._move_cursor(-content_rows)
-        elif key == curses.KEY_NPAGE:       # Page Down
+        elif key in (curses.KEY_NPAGE, curses.KEY_F8):   # Page Down
             self._move_cursor(content_rows)
+        elif key == curses.KEY_F10:         # Scroll left
+            vs.col_offset = max(0, vs.col_offset - (vs.screen_cols - TEXT_OFFSET))
+        elif key == curses.KEY_F11:         # Scroll right
+            vs.col_offset += vs.screen_cols - TEXT_OFFSET
         elif key == curses.KEY_HOME or key == ord('\x01'):  # Home / Ctrl-A
             vs.cursor_col = 0
+            self._scroll_col_to_cursor()
         elif key == curses.KEY_END or key == ord('\x05'):   # End / Ctrl-E
             if self.buffer.lines:
                 vs.cursor_col = len(self.buffer.lines[vs.cursor_line].text)
+            self._scroll_col_to_cursor()
         elif key == curses.KEY_LEFT:
             vs.cursor_col = max(0, vs.cursor_col - 1)
+            self._scroll_col_to_cursor()
         elif key == curses.KEY_RIGHT:
             if self.buffer.lines:
                 vs.cursor_col = min(
                     len(self.buffer.lines[vs.cursor_line].text),
                     vs.cursor_col + 1)
+            self._scroll_col_to_cursor()
 
         # Enter command mode
         elif key == ord('=') or key == curses.KEY_F6:
@@ -205,6 +213,10 @@ class App:
             return f"Parse error: {raw}"
 
         cmd = tokens[0] if tokens else ""
+
+        if cmd == "COLS":
+            self.vs.show_cols = not self.vs.show_cols
+            return "Column ruler on" if self.vs.show_cols else "Column ruler off"
 
         if cmd in ("CANCEL", "QUIT"):
             self._quit_flag = True
@@ -443,6 +455,15 @@ class App:
     # Text editing helpers (basic, Phase 6 will flesh these out)
     # ------------------------------------------------------------------
 
+    def _scroll_col_to_cursor(self) -> None:
+        """Adjust col_offset so cursor_col is always visible in the text area."""
+        vs = self.vs
+        text_width = max(1, vs.screen_cols - TEXT_OFFSET)
+        if vs.cursor_col < vs.col_offset:
+            vs.col_offset = vs.cursor_col
+        elif vs.cursor_col >= vs.col_offset + text_width:
+            vs.col_offset = vs.cursor_col - text_width + 1
+
     def _insert_char(self, ch: str) -> None:
         vs = self.vs
         if not self.buffer.lines:
@@ -451,6 +472,7 @@ class App:
         new_text = line.text[:vs.cursor_col] + ch + line.text[vs.cursor_col:]
         self.buffer.replace_line(vs.cursor_line, new_text)
         vs.cursor_col += 1
+        self._scroll_col_to_cursor()
 
     def _backspace(self) -> None:
         vs = self.vs
@@ -461,6 +483,7 @@ class App:
             new_text = line.text[:vs.cursor_col - 1] + line.text[vs.cursor_col:]
             self.buffer.replace_line(vs.cursor_line, new_text)
             vs.cursor_col -= 1
+            self._scroll_col_to_cursor()
         elif vs.cursor_line > 0:
             # Join with previous line
             prev = self.buffer.lines[vs.cursor_line - 1].text
@@ -471,6 +494,7 @@ class App:
             vs.cursor_line -= 1
             vs.cursor_col = new_col
             self._scroll_to_cursor()
+            self._scroll_col_to_cursor()
 
     def _delete_char(self) -> None:
         vs = self.vs
@@ -521,7 +545,7 @@ class App:
     def _scroll_to_cursor(self) -> None:
         vs = self.vs
         rows, _ = self.display.stdscr.getmaxyx()
-        content_rows = rows - 2
+        content_rows = rows - 2 - (1 if vs.show_cols else 0)
         if vs.cursor_line < vs.top_line:
             vs.top_line = vs.cursor_line
         elif vs.cursor_line >= vs.top_line + content_rows:

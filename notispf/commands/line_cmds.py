@@ -37,10 +37,22 @@ def cmd_move(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
                         cursor_hint=min(line_idx, len(buffer) - 1))
 
 
+def _overlay_text(source: str, dest: str) -> str:
+    """Merge source onto dest: source chars replace spaces in dest."""
+    result = []
+    for i in range(max(len(source), len(dest))):
+        d = dest[i] if i < len(dest) else ' '
+        s = source[i] if i < len(source) else ' '
+        result.append(d if d != ' ' else s)
+    return ''.join(result).rstrip()
+
+
 def cmd_after(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
     clipboard = buffer.pop_clipboard()
     if not clipboard:
         return EditorResult(success=False, message="Nothing in clipboard")
+    if buffer.clipboard_is_overlay:
+        return _do_overlay(buffer, line_idx + 1, clipboard)
     buffer.insert_lines(line_idx, clipboard)
     return EditorResult(success=True, cursor_hint=line_idx + 1)
 
@@ -49,8 +61,21 @@ def cmd_before(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
     clipboard = buffer.pop_clipboard()
     if not clipboard:
         return EditorResult(success=False, message="Nothing in clipboard")
+    if buffer.clipboard_is_overlay:
+        return _do_overlay(buffer, line_idx, clipboard)
     buffer.insert_lines(line_idx - 1, clipboard)
     return EditorResult(success=True, cursor_hint=line_idx)
+
+
+def _do_overlay(buffer: Buffer, start_idx: int, clipboard: list[str]) -> EditorResult:
+    """Overlay clipboard lines onto existing lines starting at start_idx."""
+    for i, src in enumerate(clipboard):
+        dest_idx = start_idx + i
+        if dest_idx >= len(buffer):
+            break
+        dest = buffer.lines[dest_idx].text
+        buffer.replace_line(dest_idx, _overlay_text(src, dest))
+    return EditorResult(success=True, cursor_hint=start_idx)
 
 
 def register(registry: CommandRegistry) -> None:

@@ -5,7 +5,7 @@ import os
 
 from notispf.buffer import Buffer
 from notispf.commands.registry import CommandRegistry
-from notispf.commands import line_cmds, block_cmds, exclude_cmds
+from notispf.commands import line_cmds, block_cmds, exclude_cmds, overlay_cmds
 from notispf.display import Display, ViewState, TEXT_OFFSET
 from notispf.find_change import FindChangeEngine
 from notispf.prefix import PrefixArea
@@ -16,6 +16,7 @@ def _build_registry() -> CommandRegistry:
     line_cmds.register(r)
     block_cmds.register(r)
     exclude_cmds.register(r)
+    overlay_cmds.register(r)
     return r
 
 

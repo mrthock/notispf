@@ -59,9 +59,12 @@ class App:
         self.vs.screen_rows = rows
         self.vs.screen_cols = cols
         self.vs.pending_prefixes = dict(self.prefix_area._pending)
-        # Show live prefix input while user is typing
-        if self.vs.prefix_mode and self.vs.prefix_input:
-            self.vs.pending_prefixes[self.vs.cursor_line] = self.vs.prefix_input
+        # Overlay the live input for the current line while the user is typing
+        if self.vs.prefix_mode:
+            if self.vs.prefix_input:
+                self.vs.pending_prefixes[self.vs.cursor_line] = self.vs.prefix_input
+            else:
+                self.vs.pending_prefixes.pop(self.vs.cursor_line, None)
         if self.prefix_area._open_block:
             self.vs.open_block_line = self.prefix_area._open_block.line_idx
             self.vs.open_block_cmd = self.prefix_area._open_block.cmd_name
@@ -240,23 +243,34 @@ class App:
         vs = self.vs
 
         if key in (curses.KEY_ENTER, ord('\n'), ord('\r')):
-            # Commit the prefix command
-            raw = vs.prefix_input.strip()
+            # Save current line's input, then execute all staged prefixes
+            self._stage_current_prefix()
             vs.prefix_mode = False
             vs.prefix_input = ""
             vs.message = ""
-            if raw and self.buffer.lines:
-                result = self.prefix_area.enter_prefix(vs.cursor_line, raw)
-                if result is not None:
-                    vs.message = result.message
-                    if result.cursor_hint is not None:
-                        vs.cursor_line = max(0, min(result.cursor_hint, len(self.buffer) - 1))
-                        self._scroll_to_cursor()
-                else:
-                    vs.message = f"Waiting for block partner..."
+            self._execute_staged_prefixes()
 
-        elif key == 27 or key == ord('\t'):
-            # Escape or Tab cancels prefix mode
+        elif key == curses.KEY_UP:
+            self._stage_current_prefix()
+            self._move_cursor(-1)
+            vs.prefix_input = self.prefix_area._pending.get(vs.cursor_line, "")
+
+        elif key == curses.KEY_DOWN:
+            self._stage_current_prefix()
+            self._move_cursor(1)
+            vs.prefix_input = self.prefix_area._pending.get(vs.cursor_line, "")
+
+        elif key == 27:
+            # Escape: cancel prefix mode and clear all staged prefixes
+            vs.prefix_mode = False
+            vs.prefix_input = ""
+            vs.message = ""
+            self.prefix_area._pending.clear()
+            self.prefix_area.cancel_open_block()
+
+        elif key == ord('\t'):
+            # Tab: exit prefix mode back to text area (keep staged prefixes)
+            self._stage_current_prefix()
             vs.prefix_mode = False
             vs.prefix_input = ""
             vs.message = ""
@@ -267,13 +281,35 @@ class App:
         elif 32 <= key <= 126 and len(vs.prefix_input) < 6:
             vs.prefix_input += chr(key)
 
-        # Update pending display for this line while typing
-        if vs.prefix_mode and vs.prefix_input:
-            vs.pending_prefixes[vs.cursor_line] = vs.prefix_input
-        elif vs.cursor_line in vs.pending_prefixes and not vs.prefix_mode:
-            vs.pending_prefixes.pop(vs.cursor_line, None)
-
         return False
+
+    def _stage_current_prefix(self) -> None:
+        """Save the current prefix input into the pending dict without executing."""
+        vs = self.vs
+        raw = vs.prefix_input.strip()
+        if raw:
+            self.prefix_area._pending[vs.cursor_line] = raw
+        else:
+            self.prefix_area._pending.pop(vs.cursor_line, None)
+
+    def _execute_staged_prefixes(self) -> None:
+        """Execute all pending prefix commands in line order."""
+        vs = self.vs
+        last_message = ""
+        for line_idx in sorted(self.prefix_area._pending.keys()):
+            raw = self.prefix_area._pending.get(line_idx, "")
+            if not raw:
+                continue
+            result = self.prefix_area.enter_prefix(line_idx, raw)
+            if result is not None:
+                if result.message:
+                    last_message = result.message
+                if result.cursor_hint is not None:
+                    vs.cursor_line = max(0, min(result.cursor_hint, len(self.buffer) - 1))
+                    self._scroll_to_cursor()
+            else:
+                last_message = "Waiting for block partner..."
+        vs.message = last_message
 
     def _save_and_quit(self) -> None:
         if self.buffer.modified and self.buffer.filepath:

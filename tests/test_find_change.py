@@ -147,4 +147,30 @@ def test_change_in_range_single_line(engine, buf):
     buf.set_label(1, ".B")
     count = engine.change_in_range("fox", "wolf", ".A", ".B")
     assert count == 1
-    assert buf.lines[0].text == "The quick brown wolf"
+
+
+# --- Excluded lines are skipped ---
+
+def test_find_skips_excluded(engine, buf):
+    buf.lines[0].excluded = True   # "The quick brown fox" — excluded
+    pos = engine.find_next("fox")
+    assert pos is not None
+    assert pos[0] == 2             # finds "fox" on line 2 instead
+
+
+def test_change_all_skips_excluded(engine, buf):
+    buf.lines[0].excluded = True
+    count = engine.change_all("fox", "cat")
+    assert count == 1              # only line 2, not line 0
+    assert buf.lines[0].text == "The quick brown fox"   # unchanged
+    assert buf.lines[2].text == "The cat said hello"
+
+
+def test_change_in_range_skips_excluded(engine, buf):
+    buf.set_label(0, ".A")
+    buf.set_label(2, ".B")
+    buf.lines[0].excluded = True
+    count = engine.change_in_range("fox", "wolf", ".A", ".B")
+    assert count == 1
+    assert buf.lines[0].text == "The quick brown fox"   # excluded — untouched
+    assert buf.lines[2].text == "The wolf said hello"

@@ -17,6 +17,8 @@ class FindChangeEngine:
 
         for i in range(len(self.buffer)):
             line_idx = (start_line + i) % len(self.buffer)
+            if self.buffer.lines[line_idx].excluded:
+                continue
             text = self.buffer.lines[line_idx].text
             haystack = text if case_sensitive else text.lower()
             search_from = start_col if i == 0 else 0
@@ -42,14 +44,13 @@ class FindChangeEngine:
         count = 0
         needle = old if case_sensitive else old.lower()
         for i, line in enumerate(self.buffer.lines):
+            if line.excluded:
+                continue
             text = line.text
             haystack = text if case_sensitive else text.lower()
             if needle in haystack:
-                # Use proper case replacement
-                new_text = (text if case_sensitive else text.lower()).replace(needle, new)
-                if not case_sensitive:
-                    # Rebuild preserving original case outside matches
-                    new_text = _replace_all_nocase(text, old, new)
+                new_text = _replace_all_nocase(text, old, new) if not case_sensitive \
+                    else text.replace(old, new)
                 self.buffer.replace_line(i, new_text)
                 count += (text if case_sensitive else text.lower()).count(needle)
         return count
@@ -69,10 +70,13 @@ class FindChangeEngine:
         count = 0
         needle = old if case_sensitive else old.lower()
         for i in range(start_idx, end_idx + 1):
+            if self.buffer.lines[i].excluded:
+                continue
             text = self.buffer.lines[i].text
             haystack = text if case_sensitive else text.lower()
             if needle in haystack:
-                new_text = _replace_all_nocase(text, old, new) if not case_sensitive else text.replace(old, new)
+                new_text = _replace_all_nocase(text, old, new) if not case_sensitive \
+                    else text.replace(old, new)
                 self.buffer.replace_line(i, new_text)
                 count += haystack.count(needle)
         return count

@@ -131,17 +131,16 @@ class App:
             except Exception as e:
                 vs.message = f"Save error: {e}"
 
-        # Tab moves cursor into prefix column
-        elif key == ord('\t'):
-            vs.prefix_mode = True
-            vs.prefix_input = self.prefix_area._pending.get(vs.cursor_line, "")
-            vs.message = "Type prefix command, Enter to execute, Esc to cancel"
-
-        # Shift+Tab moves cursor back to text area
-        elif key == curses.KEY_BTAB:
-            vs.prefix_mode = False
-            vs.prefix_input = ""
-            vs.message = ""
+        # Tab / Shift+Tab toggle between text area and prefix column
+        elif key == ord('\t') or key == curses.KEY_BTAB:
+            vs.prefix_mode = not vs.prefix_mode
+            if vs.prefix_mode:
+                vs.prefix_input = self.prefix_area._pending.get(vs.cursor_line, "")
+                vs.message = "Type prefix command, Enter to execute, Esc to cancel"
+            else:
+                self._stage_current_prefix()
+                vs.prefix_input = ""
+                vs.message = ""
 
         # Text editing (Phase 6 — placeholder)
         elif key == curses.KEY_BACKSPACE or key == 127:

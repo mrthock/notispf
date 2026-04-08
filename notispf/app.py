@@ -5,7 +5,7 @@ import os
 
 from notispf.buffer import Buffer
 from notispf.commands.registry import CommandRegistry
-from notispf.commands import line_cmds, block_cmds
+from notispf.commands import line_cmds, block_cmds, exclude_cmds
 from notispf.display import Display, ViewState, TEXT_OFFSET
 from notispf.find_change import FindChangeEngine
 from notispf.prefix import PrefixArea
@@ -15,6 +15,7 @@ def _build_registry() -> CommandRegistry:
     r = CommandRegistry()
     line_cmds.register(r)
     block_cmds.register(r)
+    exclude_cmds.register(r)
     return r
 
 
@@ -206,6 +207,10 @@ class App:
         if cmd in ("CANCEL", "QUIT"):
             self._quit_flag = True
             return ""
+
+        if cmd == "SHOW" and "ALL" in tokens:
+            self.buffer.show_all()
+            return "All lines shown"
 
         if cmd in ("SAVE", "FILE"):
             try:
@@ -428,7 +433,11 @@ class App:
     def _move_cursor(self, delta: int) -> None:
         vs = self.vs
         buf_len = max(len(self.buffer), 1)
-        vs.cursor_line = max(0, min(vs.cursor_line + delta, buf_len - 1))
+        new_line = max(0, min(vs.cursor_line + delta, buf_len - 1))
+        # Skip excluded lines in the direction of travel
+        direction = 1 if delta >= 0 else -1
+        new_line = self.buffer.next_visible(new_line, direction)
+        vs.cursor_line = new_line
         if self.buffer.lines:
             vs.cursor_col = min(vs.cursor_col,
                                 len(self.buffer.lines[vs.cursor_line].text))

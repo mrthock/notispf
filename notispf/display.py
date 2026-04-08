@@ -93,17 +93,38 @@ class Display:
     # Content area (rows 1..rows-2)
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def build_view(buffer, top_line: int, content_rows: int) -> list:
+        """Build a view list from top_line filling up to content_rows entries.
+
+        Each entry is one of:
+          ('line', buf_idx)
+          ('fold', start_idx, end_idx, count)
+        """
+        entries = []
+        i = top_line
+        while i < len(buffer) and len(entries) < content_rows:
+            if not buffer.lines[i].excluded:
+                entries.append(('line', i))
+                i += 1
+            else:
+                start = i
+                while i < len(buffer) and buffer.lines[i].excluded:
+                    i += 1
+                entries.append(('fold', start, i - 1, i - start))
+        return entries
+
     def _render_content(self, buffer, prefix_area, vs: ViewState,
                         rows: int, cols: int) -> None:
-        content_rows = rows - 2   # row 0 = status, last row = message/cmd
+        content_rows = rows - 2
         text_width = cols - TEXT_OFFSET
+        view = self.build_view(buffer, vs.top_line, content_rows)
 
         for screen_row in range(content_rows):
-            buf_idx = vs.top_line + screen_row
-            row = screen_row + 1   # offset past status bar
+            row = screen_row + 1
 
-            if buf_idx >= len(buffer):
-                # Past end of file — render empty prefix + tilde
+            if screen_row >= len(view):
+                # Past end of file
                 self._addstr_clipped(row, 0, " " * PREFIX_WIDTH,
                                      curses.color_pair(_CP_PREFIX))
                 self._addstr_clipped(row, PREFIX_WIDTH, "|",
@@ -112,29 +133,39 @@ class Display:
                                      curses.color_pair(_CP_PREFIX))
                 continue
 
-            # Prefix column
-            prefix_content = self._get_prefix_display(
-                buf_idx, buf_idx + 1, prefix_area, vs)
+            entry = view[screen_row]
+
+            if entry[0] == 'fold':
+                _, start_idx, end_idx, count = entry
+                # Prefix shows fold count
+                fold_prefix = f"-{count}-".center(6)[:6]
+                self._addstr_clipped(row, 0, fold_prefix,
+                                     curses.color_pair(_CP_MODIFIED))
+                self._addstr_clipped(row, PREFIX_WIDTH, "|",
+                                     curses.color_pair(_CP_SEP))
+                fold_text = f" - - - {count} line(s) not displayed - - -"
+                fold_text = fold_text.ljust(text_width)[:text_width]
+                self._addstr_clipped(row, TEXT_OFFSET, fold_text,
+                                     curses.color_pair(_CP_MODIFIED))
+                continue
+
+            # Normal line
+            _, buf_idx = entry
             is_cursor_line = (buf_idx == vs.cursor_line)
+            prefix_content = self._get_prefix_display(buf_idx, buf_idx + 1,
+                                                       prefix_area, vs)
             prefix_attr = curses.color_pair(_CP_MODIFIED) \
                 if buffer.lines[buf_idx].modified \
                 else curses.color_pair(_CP_PREFIX)
             self._addstr_clipped(row, 0, f"{prefix_content:>6}"[:6], prefix_attr)
 
-            # Separator
             self._addstr_clipped(row, PREFIX_WIDTH, "|",
                                  curses.color_pair(_CP_SEP))
 
-            # Text
             text = buffer.lines[buf_idx].text
-            display_text = text[vs.cursor_col - (vs.cursor_col % text_width)
-                                if False else 0:]  # horizontal scroll: future
-            display_text = display_text[:text_width]
+            display_text = text[:text_width].ljust(text_width)[:text_width]
             text_attr = curses.color_pair(_CP_CURSOR) if is_cursor_line \
                 else curses.color_pair(_CP_TEXT)
-
-            # Pad to fill the row so the highlight covers the full line
-            display_text = display_text.ljust(text_width)[:text_width]
             self._addstr_clipped(row, TEXT_OFFSET, display_text, text_attr)
 
     def _get_prefix_display(self, buf_idx: int, line_number: int,

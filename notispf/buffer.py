@@ -8,6 +8,7 @@ class Line:
     text: str
     label: str | None = None
     modified: bool = False
+    excluded: bool = False
 
 
 class Buffer:
@@ -100,9 +101,43 @@ class Buffer:
             insert_pos += count
         self.modified = True
 
-    #-------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # Exclude / Show
+    # ------------------------------------------------------------------
+
+    def exclude_lines(self, start_idx: int, count: int = 1) -> None:
+        for i in range(start_idx, min(start_idx + count, len(self.lines))):
+            self.lines[i].excluded = True
+
+    def show_lines(self, start_idx: int, count: int | None = None) -> None:
+        """Un-exclude lines. If count is None, un-exclude the entire fold group."""
+        if count is None:
+            # Find the full excluded run containing start_idx
+            i = start_idx
+            while i >= 0 and self.lines[i].excluded:
+                i -= 1
+            i += 1
+            while i < len(self.lines) and self.lines[i].excluded:
+                self.lines[i].excluded = False
+                i += 1
+        else:
+            for i in range(start_idx, min(start_idx + count, len(self.lines))):
+                self.lines[i].excluded = False
+
+    def show_all(self) -> None:
+        for line in self.lines:
+            line.excluded = False
+
+    def next_visible(self, idx: int, direction: int = 1) -> int:
+        """Return the nearest non-excluded line index from idx in direction (+1/-1)."""
+        i = idx
+        while 0 <= i < len(self.lines) and self.lines[i].excluded:
+            i += direction
+        return max(0, min(i, len(self.lines) - 1))
+
+    # ------------------------------------------------------------------
     # Clipboard
-    #-------------------------------------------------------------------
+    # ------------------------------------------------------------------
 
     def push_clipboard(self, lines: list[str]) -> None:
         self._clipboard = list(lines)

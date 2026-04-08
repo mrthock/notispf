@@ -14,6 +14,7 @@ _CP_MSG      = 6   # message line
 _CP_CMD      = 7   # command input line
 _CP_CURSOR   = 8   # current line highlight
 _CP_RULER    = 9   # column ruler
+_CP_HIGHLIGHT = 10  # found pattern highlight
 
 
 @dataclass
@@ -33,6 +34,7 @@ class ViewState:
     prefix_input: str = ""      # what user has typed in prefix column so far
     show_cols: bool = False     # True when column ruler is visible
     col_offset: int = 0        # horizontal scroll offset (columns shifted left)
+    highlight_pattern: str = "" # pattern to highlight (empty = none)
 
 
 # Layout constants
@@ -60,6 +62,7 @@ class Display:
         curses.init_pair(_CP_CMD,      curses.COLOR_BLACK,  curses.COLOR_WHITE)
         curses.init_pair(_CP_CURSOR,   -1,                  curses.COLOR_BLUE)
         curses.init_pair(_CP_RULER,    curses.COLOR_BLACK,  curses.COLOR_WHITE)
+        curses.init_pair(_CP_HIGHLIGHT, curses.COLOR_BLACK,  curses.COLOR_YELLOW)
 
         self.stdscr.keypad(True)
 
@@ -188,11 +191,63 @@ class Display:
                                  curses.color_pair(_CP_SEP))
 
             text = buffer.lines[buf_idx].text
-            scrolled = text[vs.col_offset:] if vs.col_offset < len(text) else ""
-            display_text = scrolled[:text_width].ljust(text_width)[:text_width]
-            text_attr = curses.color_pair(_CP_CURSOR) if is_cursor_line \
+            base_attr = curses.color_pair(_CP_CURSOR) if is_cursor_line \
                 else curses.color_pair(_CP_TEXT)
-            self._addstr_clipped(row, TEXT_OFFSET, display_text, text_attr)
+            self._render_line_text(row, text, vs.col_offset, text_width,
+                                   base_attr, vs.highlight_pattern)
+
+    def _render_line_text(self, row: int, text: str, col_offset: int,
+                         text_width: int, base_attr: int,
+                         highlight_pattern: str) -> None:
+        """Render one line's text area, highlighting all pattern occurrences."""
+        # Build the padded display string for the visible window
+        visible = text[col_offset:col_offset + text_width].ljust(text_width)
+
+        if not highlight_pattern:
+            self._addstr_clipped(row, TEXT_OFFSET, visible, base_attr)
+            return
+
+        # Find all match spans within the full text, clipped to visible window
+        needle = highlight_pattern.lower()
+        haystack = text.lower()
+        matches: list[tuple[int, int]] = []
+        start = 0
+        while True:
+            idx = haystack.find(needle, start)
+            if idx == -1:
+                break
+            matches.append((idx, idx + len(highlight_pattern)))
+            start = idx + len(highlight_pattern)
+
+        if not matches:
+            self._addstr_clipped(row, TEXT_OFFSET, visible, base_attr)
+            return
+
+        hi_attr = curses.color_pair(_CP_HIGHLIGHT)
+        sc = 0  # screen column within text area
+        for match_start, match_end in matches:
+            # Characters before this match
+            before_start = match_start - col_offset
+            before_end = match_end - col_offset
+            seg_start = max(sc, 0)
+            seg_end = min(before_start, text_width)
+            if seg_start < seg_end:
+                self._addstr_clipped(row, TEXT_OFFSET + seg_start,
+                                     visible[seg_start:seg_end], base_attr)
+            sc = max(sc, before_start)
+            # Highlighted match characters
+            hi_start = max(sc, 0)
+            hi_end = min(before_end, text_width)
+            if hi_start < hi_end:
+                self._addstr_clipped(row, TEXT_OFFSET + hi_start,
+                                     visible[hi_start:hi_end], hi_attr)
+            sc = max(sc, before_end)
+            if sc >= text_width:
+                break
+
+        # Remaining text after last match
+        if sc < text_width:
+            self._addstr_clipped(row, TEXT_OFFSET + sc, visible[sc:], base_attr)
 
     def _get_prefix_display(self, buf_idx: int, line_number: int,
                              prefix_area, vs: ViewState) -> str:

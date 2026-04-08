@@ -214,6 +214,10 @@ class App:
 
         cmd = tokens[0] if tokens else ""
 
+        if cmd == "CLEAR":
+            self.vs.highlight_pattern = ""
+            return "Highlighting cleared"
+
         if cmd == "COLS":
             self.vs.show_cols = not self.vs.show_cols
             return "Column ruler on" if self.vs.show_cols else "Column ruler off"
@@ -327,13 +331,14 @@ class App:
                 if last.isdigit() and int(last) >= 1:
                     find_col = int(last)
             pos = self.find_engine.find_next(pattern, col=find_col)
+            col_msg = f" at column {find_col}" if find_col else ""
             if pos:
                 self.vs.cursor_line, self.vs.cursor_col = pos
                 self._scroll_to_cursor()
                 self._scroll_col_to_cursor()
-                col_msg = f" at column {find_col}" if find_col else ""
+                self.vs.highlight_pattern = pattern
                 return f"Found: {pattern!r}{col_msg}"
-            col_msg = f" at column {find_col}" if find_col else ""
+            self.vs.highlight_pattern = ""
             return f"Not found: {pattern!r}{col_msg}"
 
         if cmd == "CHANGE":
@@ -362,14 +367,20 @@ class App:
                             old, new, labels[0], labels[1], col=change_col)
                     else:
                         n = self.find_engine.change_all(old, new, col=change_col)
+                    if n:
+                        self.vs.highlight_pattern = new
                     return f"{n} change(s) made"
                 else:
                     labels = [t for t in rest if t.startswith(".")]
                     if len(labels) >= 2:
                         n = self.find_engine.change_in_range(
                             old, new, labels[0], labels[1], col=change_col)
+                        if n:
+                            self.vs.highlight_pattern = new
                         return f"{n} change(s) made"
                     n = self.find_engine.change_next(old, new, col=change_col)
+                    if n:
+                        self.vs.highlight_pattern = new
                     return f"{n} change(s) made" if n else f"Not found: {old!r}"
             except ValueError as e:
                 return str(e)

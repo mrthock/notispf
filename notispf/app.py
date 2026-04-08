@@ -109,6 +109,11 @@ class App:
             self._save_and_quit()
             return True
 
+        # F12 = CANCEL (quit without saving)
+        elif key == curses.KEY_F12:
+            self.display.close()
+            return True
+
         # F5 = save without quit
         elif key == curses.KEY_F5:
             try:
@@ -162,6 +167,10 @@ class App:
             return f"Parse error: {raw}"
 
         cmd = tokens[0] if tokens else ""
+
+        if cmd in ("CANCEL", "QUIT"):
+            self.display.close()
+            raise SystemExit(0)
 
         if cmd in ("SAVE", "FILE"):
             try:

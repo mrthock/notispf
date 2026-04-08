@@ -134,8 +134,14 @@ class App:
         # Tab moves cursor into prefix column
         elif key == ord('\t'):
             vs.prefix_mode = True
-            vs.prefix_input = ""
+            vs.prefix_input = self.prefix_area._pending.get(vs.cursor_line, "")
             vs.message = "Type prefix command, Enter to execute, Esc to cancel"
+
+        # Shift+Tab moves cursor back to text area
+        elif key == curses.KEY_BTAB:
+            vs.prefix_mode = False
+            vs.prefix_input = ""
+            vs.message = ""
 
         # Text editing (Phase 6 — placeholder)
         elif key == curses.KEY_BACKSPACE or key == 127:
@@ -268,8 +274,8 @@ class App:
             self.prefix_area._pending.clear()
             self.prefix_area.cancel_open_block()
 
-        elif key == ord('\t'):
-            # Tab: exit prefix mode back to text area (keep staged prefixes)
+        elif key == ord('\t') or key == curses.KEY_BTAB:
+            # Tab / Shift+Tab: exit prefix mode back to text area (keep staged)
             self._stage_current_prefix()
             vs.prefix_mode = False
             vs.prefix_input = ""

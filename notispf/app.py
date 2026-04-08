@@ -131,16 +131,35 @@ class App:
             except Exception as e:
                 vs.message = f"Save error: {e}"
 
-        # Tab / Shift+Tab toggle between text area and prefix column
-        elif key == ord('\t') or key == curses.KEY_BTAB:
-            vs.prefix_mode = not vs.prefix_mode
+        # Tab: prefix(N) -> text(N),  text(N) -> prefix(N+1)
+        elif key == ord('\t'):
             if vs.prefix_mode:
-                vs.prefix_input = self.prefix_area._pending.get(vs.cursor_line, "")
-                vs.message = "Type prefix command, Enter to execute, Esc to cancel"
-            else:
+                # Leave prefix area, stay on same line, go to text
                 self._stage_current_prefix()
+                vs.prefix_mode = False
                 vs.prefix_input = ""
                 vs.message = ""
+            else:
+                # Advance to next line and enter its prefix area
+                self._move_cursor(1)
+                vs.prefix_mode = True
+                vs.prefix_input = self.prefix_area._pending.get(vs.cursor_line, "")
+                vs.message = "Type prefix command, Enter to execute, Esc to cancel"
+
+        # Shift+Tab: text(N) -> prefix(N),  prefix(N) -> text(N-1)
+        elif key == curses.KEY_BTAB:
+            if vs.prefix_mode:
+                # Leave prefix area, go to previous line's text area
+                self._stage_current_prefix()
+                vs.prefix_mode = False
+                vs.prefix_input = ""
+                vs.message = ""
+                self._move_cursor(-1)
+            else:
+                # Enter prefix area of current line
+                vs.prefix_mode = True
+                vs.prefix_input = self.prefix_area._pending.get(vs.cursor_line, "")
+                vs.message = "Type prefix command, Enter to execute, Esc to cancel"
 
         # Text editing (Phase 6 — placeholder)
         elif key == curses.KEY_BACKSPACE or key == 127:

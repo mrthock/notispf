@@ -19,7 +19,6 @@ class Buffer:
         self._undo_stack: list[list[Line]] = []
         self._redo_stack: list[list[Line]] = []
         self._clipboard: list[str] = []
-        self._clipboard_is_overlay: bool = False
 
         if filepath:
             self.load_file(filepath)
@@ -140,16 +139,11 @@ class Buffer:
     # Clipboard
     # ------------------------------------------------------------------
 
-    def push_clipboard(self, lines: list[str], overlay: bool = False) -> None:
+    def push_clipboard(self, lines: list[str]) -> None:
         self._clipboard = list(lines)
-        self._clipboard_is_overlay = overlay
 
     def pop_clipboard(self) -> list[str]:
         return list(self._clipboard)
-
-    @property
-    def clipboard_is_overlay(self) -> bool:
-        return getattr(self, '_clipboard_is_overlay', False)
 
     #-------------------------------------------------------------------
     # Labels

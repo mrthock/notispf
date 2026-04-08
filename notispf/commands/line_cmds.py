@@ -25,7 +25,7 @@ def cmd_repeat(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
 def cmd_copy(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
     texts = [buffer.lines[i].text for i in range(line_idx, min(line_idx + count, len(buffer)))]
     buffer.push_clipboard(texts)
-    return EditorResult(success=True, message=f"{len(texts)} line(s) copied — place with A or B")
+    return EditorResult(success=True, message=f"{len(texts)} line(s) copied — place with A, B, or O/OO")
 
 
 def cmd_move(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
@@ -33,11 +33,27 @@ def cmd_move(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
     texts = [buffer.lines[i].text for i in range(line_idx, line_idx + count)]
     buffer.push_clipboard(texts)
     buffer.delete_lines(line_idx, count)
-    return EditorResult(success=True, message=f"{len(texts)} line(s) moved — place with A or B",
+    return EditorResult(success=True, message=f"{len(texts)} line(s) moved — place with A, B, or O/OO",
                         cursor_hint=min(line_idx, len(buffer) - 1))
 
 
-def _overlay_text(source: str, dest: str) -> str:
+def cmd_after(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
+    clipboard = buffer.pop_clipboard()
+    if not clipboard:
+        return EditorResult(success=False, message="Nothing in clipboard")
+    buffer.insert_lines(line_idx, clipboard)
+    return EditorResult(success=True, cursor_hint=line_idx + 1)
+
+
+def cmd_before(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
+    clipboard = buffer.pop_clipboard()
+    if not clipboard:
+        return EditorResult(success=False, message="Nothing in clipboard")
+    buffer.insert_lines(line_idx - 1, clipboard)
+    return EditorResult(success=True, cursor_hint=line_idx)
+
+
+def overlay_text(source: str, dest: str) -> str:
     """Merge source onto dest: source chars replace spaces in dest."""
     result = []
     for i in range(max(len(source), len(dest))):
@@ -47,35 +63,18 @@ def _overlay_text(source: str, dest: str) -> str:
     return ''.join(result).rstrip()
 
 
-def cmd_after(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
+def cmd_overlay(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
+    """O — overlay destination: merge clipboard into this line (and count-1 below)."""
     clipboard = buffer.pop_clipboard()
     if not clipboard:
         return EditorResult(success=False, message="Nothing in clipboard")
-    if buffer.clipboard_is_overlay:
-        return _do_overlay(buffer, line_idx + 1, clipboard)
-    buffer.insert_lines(line_idx, clipboard)
-    return EditorResult(success=True, cursor_hint=line_idx + 1)
-
-
-def cmd_before(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
-    clipboard = buffer.pop_clipboard()
-    if not clipboard:
-        return EditorResult(success=False, message="Nothing in clipboard")
-    if buffer.clipboard_is_overlay:
-        return _do_overlay(buffer, line_idx, clipboard)
-    buffer.insert_lines(line_idx - 1, clipboard)
-    return EditorResult(success=True, cursor_hint=line_idx)
-
-
-def _do_overlay(buffer: Buffer, start_idx: int, clipboard: list[str]) -> EditorResult:
-    """Overlay clipboard lines onto existing lines starting at start_idx."""
-    for i, src in enumerate(clipboard):
-        dest_idx = start_idx + i
+    for i in range(count):
+        dest_idx = line_idx + i
         if dest_idx >= len(buffer):
             break
-        dest = buffer.lines[dest_idx].text
-        buffer.replace_line(dest_idx, _overlay_text(src, dest))
-    return EditorResult(success=True, cursor_hint=start_idx)
+        src = clipboard[i % len(clipboard)]
+        buffer.replace_line(dest_idx, overlay_text(src, buffer.lines[dest_idx].text))
+    return EditorResult(success=True, cursor_hint=line_idx)
 
 
 def register(registry: CommandRegistry) -> None:
@@ -86,3 +85,4 @@ def register(registry: CommandRegistry) -> None:
     registry.register_line_cmd(CommandSpec("M", cmd_move, description="Move line(s) to clipboard"))
     registry.register_line_cmd(CommandSpec("A", cmd_after, description="Paste clipboard after this line"))
     registry.register_line_cmd(CommandSpec("B", cmd_before, description="Paste clipboard before this line"))
+    registry.register_line_cmd(CommandSpec("O", cmd_overlay, description="Overlay clipboard onto this line"))

@@ -5,7 +5,7 @@ import os
 
 from notispf.buffer import Buffer
 from notispf.commands.registry import CommandRegistry
-from notispf.commands import line_cmds, block_cmds, exclude_cmds, overlay_cmds
+from notispf.commands import line_cmds, block_cmds, exclude_cmds
 from notispf.display import Display, ViewState, TEXT_OFFSET
 from notispf.find_change import FindChangeEngine
 from notispf.prefix import PrefixArea
@@ -16,7 +16,6 @@ def _build_registry() -> CommandRegistry:
     line_cmds.register(r)
     block_cmds.register(r)
     exclude_cmds.register(r)
-    overlay_cmds.register(r)
     return r
 
 
@@ -166,6 +165,8 @@ class App:
         # Text editing (Phase 6 — placeholder)
         elif key == curses.KEY_BACKSPACE or key == 127:
             self._backspace()
+        elif key == curses.KEY_DC:
+            self._delete_char()
         elif key in (curses.KEY_ENTER, ord('\n'), ord('\r')):
             self._enter_key()
         elif 32 <= key <= 126:
@@ -397,7 +398,7 @@ class App:
         vs = self.vs
         last_message = ""
         pending = dict(self.prefix_area._pending)
-        paste_cmds = {"A", "B"}
+        paste_cmds = {"A", "B", "O", "OO"}
 
         # Pass 1: everything except A/B, in line order
         for line_idx in sorted(pending.keys()):
@@ -470,6 +471,21 @@ class App:
             vs.cursor_line -= 1
             vs.cursor_col = new_col
             self._scroll_to_cursor()
+
+    def _delete_char(self) -> None:
+        vs = self.vs
+        if not self.buffer.lines:
+            return
+        line = self.buffer.lines[vs.cursor_line]
+        if vs.cursor_col < len(line.text):
+            new_text = line.text[:vs.cursor_col] + line.text[vs.cursor_col + 1:]
+            self.buffer.replace_line(vs.cursor_line, new_text)
+        elif vs.cursor_line < len(self.buffer) - 1:
+            # At end of line — join with next line
+            curr = line.text
+            nxt = self.buffer.lines[vs.cursor_line + 1].text
+            self.buffer.replace_line(vs.cursor_line, curr + nxt)
+            self.buffer.delete_lines(vs.cursor_line + 1, 1)
 
     def _enter_key(self) -> None:
         vs = self.vs

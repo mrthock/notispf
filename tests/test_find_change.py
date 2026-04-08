@@ -190,6 +190,38 @@ def test_delete_case_sensitive(engine, buf):
     assert buf.lines[2].text == "The fox said hello"   # lowercase survives
 
 
+def test_delete_excluded(engine, buf):
+    buf.lines[1].excluded = True
+    buf.lines[3].excluded = True
+    n = engine.delete_excluded()
+    assert n == 2
+    assert len(buf) == 3
+    assert all(not l.excluded for l in buf.lines)
+
+
+def test_delete_excluded_none(engine, buf):
+    n = engine.delete_excluded()
+    assert n == 0
+    assert len(buf) == 5
+
+
+def test_delete_non_excluded(engine, buf):
+    buf.lines[1].excluded = True
+    buf.lines[3].excluded = True
+    n = engine.delete_non_excluded()
+    assert n == 3
+    assert len(buf) == 2
+    assert all(l.excluded for l in buf.lines)
+
+
+def test_delete_non_excluded_none(engine, buf):
+    for l in buf.lines:
+        l.excluded = True
+    n = engine.delete_non_excluded()
+    assert n == 0
+    assert len(buf) == 5
+
+
 def test_delete_skips_excluded(engine, buf):
     buf.lines[0].excluded = True   # "The quick brown fox"
     n = engine.delete_matching("fox")

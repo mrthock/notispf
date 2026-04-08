@@ -82,6 +82,20 @@ class FindChangeEngine:
         return count
 
 
+    def delete_excluded(self) -> int:
+        """Delete all excluded lines. Returns count of lines deleted."""
+        to_delete = [i for i, line in enumerate(self.buffer.lines) if line.excluded]
+        for i in reversed(to_delete):
+            self.buffer.delete_lines(i, 1)
+        return len(to_delete)
+
+    def delete_non_excluded(self) -> int:
+        """Delete all non-excluded lines. Returns count of lines deleted."""
+        to_delete = [i for i, line in enumerate(self.buffer.lines) if not line.excluded]
+        for i in reversed(to_delete):
+            self.buffer.delete_lines(i, 1)
+        return len(to_delete)
+
     def delete_matching(self, pattern: str, limit: int | None = None,
                         case_sensitive: bool = False) -> int:
         """Delete lines containing pattern. limit=None means delete all matches.

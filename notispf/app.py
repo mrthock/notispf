@@ -227,10 +227,23 @@ class App:
             except ValueError:
                 return f"Parse error: {raw}"
             if len(orig_tokens) < 2:
-                return 'Usage: DELETE "pattern" [ALL | n]'
+                return 'Usage: DELETE "pattern" [ALL | n] | DELETE X ALL | DELETE NX ALL'
+
+            qualifier = orig_tokens[1].upper()
+
+            # DELETE X ALL — delete all excluded lines
+            if qualifier == "X":
+                n = self.find_engine.delete_excluded()
+                return f"{n} excluded line(s) deleted" if n else "No excluded lines"
+
+            # DELETE NX ALL — delete all non-excluded lines
+            if qualifier == "NX":
+                n = self.find_engine.delete_non_excluded()
+                return f"{n} non-excluded line(s) deleted" if n else "No non-excluded lines"
+
+            # DELETE "pattern" [ALL | n]
             pattern = orig_tokens[1]
             rest = orig_tokens[2:]
-            limit = None
             if rest:
                 if rest[0].upper() == "ALL":
                     limit = None

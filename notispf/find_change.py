@@ -51,7 +51,7 @@ class FindChangeEngine:
                     # Rebuild preserving original case outside matches
                     new_text = _replace_all_nocase(text, old, new)
                 self.buffer.replace_line(i, new_text)
-                count += text.lower().count(needle)
+                count += (text if case_sensitive else text.lower()).count(needle)
         return count
 
     def change_in_range(self, old: str, new: str,

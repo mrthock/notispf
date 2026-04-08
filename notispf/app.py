@@ -142,7 +142,7 @@ class App:
                 vs.message = ""
             else:
                 # Advance to next line and enter its prefix area
-                self._move_cursor(1)
+                self._move_cursor(1, skip_excluded=False)
                 vs.prefix_mode = True
                 vs.prefix_input = self.prefix_area._pending.get(vs.cursor_line, "")
                 vs.message = "Type prefix command, Enter to execute, Esc to cancel"
@@ -155,7 +155,7 @@ class App:
                 vs.prefix_mode = False
                 vs.prefix_input = ""
                 vs.message = ""
-                self._move_cursor(-1)
+                self._move_cursor(-1, skip_excluded=False)
             else:
                 # Enter prefix area of current line
                 vs.prefix_mode = True
@@ -281,12 +281,12 @@ class App:
 
         elif key == curses.KEY_UP:
             self._stage_current_prefix()
-            self._move_cursor(-1)
+            self._move_cursor(-1, skip_excluded=False)
             vs.prefix_input = self.prefix_area._pending.get(vs.cursor_line, "")
 
         elif key == curses.KEY_DOWN:
             self._stage_current_prefix()
-            self._move_cursor(1)
+            self._move_cursor(1, skip_excluded=False)
             vs.prefix_input = self.prefix_area._pending.get(vs.cursor_line, "")
 
         elif key == 27:
@@ -310,7 +310,7 @@ class App:
             vs.prefix_mode = False
             vs.prefix_input = ""
             vs.message = ""
-            self._move_cursor(-1)
+            self._move_cursor(-1, skip_excluded=False)
 
         elif key == curses.KEY_BACKSPACE or key == 127:
             vs.prefix_input = vs.prefix_input[:-1]
@@ -430,13 +430,13 @@ class App:
     # Cursor / scroll helpers
     # ------------------------------------------------------------------
 
-    def _move_cursor(self, delta: int) -> None:
+    def _move_cursor(self, delta: int, skip_excluded: bool = True) -> None:
         vs = self.vs
         buf_len = max(len(self.buffer), 1)
         new_line = max(0, min(vs.cursor_line + delta, buf_len - 1))
-        # Skip excluded lines in the direction of travel
-        direction = 1 if delta >= 0 else -1
-        new_line = self.buffer.next_visible(new_line, direction)
+        if skip_excluded:
+            direction = 1 if delta >= 0 else -1
+            new_line = self.buffer.next_visible(new_line, direction)
         vs.cursor_line = new_line
         if self.buffer.lines:
             vs.cursor_col = min(vs.cursor_col,

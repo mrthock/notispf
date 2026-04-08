@@ -221,6 +221,29 @@ class App:
             except Exception as e:
                 return f"Save error: {e}"
 
+        if cmd == "DELETE":
+            try:
+                orig_tokens = shlex.split(raw)
+            except ValueError:
+                return f"Parse error: {raw}"
+            if len(orig_tokens) < 2:
+                return 'Usage: DELETE "pattern" [ALL | n]'
+            pattern = orig_tokens[1]
+            rest = orig_tokens[2:]
+            limit = None
+            if rest:
+                if rest[0].upper() == "ALL":
+                    limit = None
+                else:
+                    try:
+                        limit = int(rest[0])
+                    except ValueError:
+                        return f"Invalid count: {rest[0]}"
+            else:
+                limit = 1   # no qualifier — delete next match only
+            n = self.find_engine.delete_matching(pattern, limit=limit)
+            return f"{n} line(s) deleted" if n else f"Not found: {pattern!r}"
+
         if cmd == "FIND":
             if len(tokens) < 2:
                 return "Usage: FIND <text>"

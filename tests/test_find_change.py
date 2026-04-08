@@ -149,6 +149,54 @@ def test_change_in_range_single_line(engine, buf):
     assert count == 1
 
 
+# --- delete_matching ---
+
+def test_delete_next(engine, buf):
+    n = engine.delete_matching("fox", limit=1)
+    assert n == 1
+    assert len(buf) == 4
+    assert buf.lines[0].text == "jumps over the lazy dog"
+
+
+def test_delete_all(engine, buf):
+    n = engine.delete_matching("fox")
+    assert n == 2
+    assert len(buf) == 3
+    assert all("fox" not in l.text for l in buf.lines)
+
+
+def test_delete_with_limit(engine, buf):
+    # Add extra fox line so there are 3 matches
+    buf.lines.append(__import__('notispf.buffer', fromlist=['Line']).Line("another fox line"))
+    n = engine.delete_matching("fox", limit=2)
+    assert n == 2
+    assert len(buf) == 4
+
+
+def test_delete_no_match(engine, buf):
+    n = engine.delete_matching("zzznomatch")
+    assert n == 0
+    assert len(buf) == 5
+
+
+def test_delete_case_insensitive(engine, buf):
+    n = engine.delete_matching("HELLO")
+    assert n == 2   # "hello" on line 2 and "HELLO" on line 3
+
+
+def test_delete_case_sensitive(engine, buf):
+    n = engine.delete_matching("HELLO", case_sensitive=True)
+    assert n == 1
+    assert buf.lines[2].text == "The fox said hello"   # lowercase survives
+
+
+def test_delete_skips_excluded(engine, buf):
+    buf.lines[0].excluded = True   # "The quick brown fox"
+    n = engine.delete_matching("fox")
+    assert n == 1                  # only line 2 deleted
+    assert buf.lines[0].text == "The quick brown fox"   # excluded — untouched
+
+
 # --- Excluded lines are skipped ---
 
 def test_find_skips_excluded(engine, buf):

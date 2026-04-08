@@ -82,6 +82,28 @@ class FindChangeEngine:
         return count
 
 
+    def delete_matching(self, pattern: str, limit: int | None = None,
+                        case_sensitive: bool = False) -> int:
+        """Delete lines containing pattern. limit=None means delete all matches.
+        Excluded lines are never deleted. Returns count of lines deleted."""
+        needle = pattern if case_sensitive else pattern.lower()
+        to_delete = []
+        for i, line in enumerate(self.buffer.lines):
+            if line.excluded:
+                continue
+            haystack = line.text if case_sensitive else line.text.lower()
+            if needle in haystack:
+                to_delete.append(i)
+                if limit is not None and len(to_delete) >= limit:
+                    break
+
+        # Delete in reverse order so indices stay valid
+        for i in reversed(to_delete):
+            self.buffer.delete_lines(i, 1)
+
+        return len(to_delete)
+
+
 def _replace_all_nocase(text: str, old: str, new: str) -> str:
     result = []
     lower_text = text.lower()

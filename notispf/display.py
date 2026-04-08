@@ -28,6 +28,8 @@ class ViewState:
     message: str = ""
     command_input: str = ""
     command_mode: bool = False  # True when cursor is in command line
+    prefix_mode: bool = False   # True when cursor is in prefix column
+    prefix_input: str = ""      # what user has typed in prefix column so far
 
 
 # Layout constants
@@ -172,6 +174,14 @@ class Display:
                 self.stdscr.move(rows - 1, col)
             except curses.error:
                 pass
+        elif vs.prefix_mode:
+            screen_row = vs.cursor_line - vs.top_line + 1
+            screen_col = min(len(vs.prefix_input), PREFIX_WIDTH - 1)
+            if 0 < screen_row < rows - 1:
+                try:
+                    self.stdscr.move(screen_row, screen_col)
+                except curses.error:
+                    pass
         else:
             screen_row = vs.cursor_line - vs.top_line + 1
             screen_col = TEXT_OFFSET + vs.cursor_col

@@ -59,6 +59,9 @@ class App:
         self.vs.screen_rows = rows
         self.vs.screen_cols = cols
         self.vs.pending_prefixes = dict(self.prefix_area._pending)
+        # Show live prefix input while user is typing
+        if self.vs.prefix_mode and self.vs.prefix_input:
+            self.vs.pending_prefixes[self.vs.cursor_line] = self.vs.prefix_input
         if self.prefix_area._open_block:
             self.vs.open_block_line = self.prefix_area._open_block.line_idx
             self.vs.open_block_cmd = self.prefix_area._open_block.cmd_name
@@ -73,6 +76,9 @@ class App:
 
         if vs.command_mode:
             return self._handle_command_key(key)
+
+        if vs.prefix_mode:
+            return self._handle_prefix_key(key)
 
         rows, _ = self.display.stdscr.getmaxyx()
         content_rows = rows - 2
@@ -122,9 +128,11 @@ class App:
             except Exception as e:
                 vs.message = f"Save error: {e}"
 
-        # Prefix area: Tab moves cursor into prefix column
+        # Tab moves cursor into prefix column
         elif key == ord('\t'):
-            self._enter_prefix_mode()
+            vs.prefix_mode = True
+            vs.prefix_input = ""
+            vs.message = "Type prefix command, Enter to execute, Esc to cancel"
 
         # Text editing (Phase 6 — placeholder)
         elif key == curses.KEY_BACKSPACE or key == 127:
@@ -228,16 +236,44 @@ class App:
 
         return f"Unknown command: {cmd}"
 
-    def _enter_prefix_mode(self) -> None:
-        """Prompt the user to type a prefix command for the current line."""
+    def _handle_prefix_key(self, key: int) -> bool:
         vs = self.vs
-        if not self.buffer.lines:
-            return
-        vs.message = f"Prefix ({vs.cursor_line + 1}): "
-        # Actual prefix input collected via command-line style for now.
-        # Full inline prefix editing is Phase 6.
-        vs.command_mode = True
-        vs.command_input = f"PREFIX {vs.cursor_line + 1} "
+
+        if key in (curses.KEY_ENTER, ord('\n'), ord('\r')):
+            # Commit the prefix command
+            raw = vs.prefix_input.strip()
+            vs.prefix_mode = False
+            vs.prefix_input = ""
+            vs.message = ""
+            if raw and self.buffer.lines:
+                result = self.prefix_area.enter_prefix(vs.cursor_line, raw)
+                if result is not None:
+                    vs.message = result.message
+                    if result.cursor_hint is not None:
+                        vs.cursor_line = max(0, min(result.cursor_hint, len(self.buffer) - 1))
+                        self._scroll_to_cursor()
+                else:
+                    vs.message = f"Waiting for block partner..."
+
+        elif key == 27 or key == ord('\t'):
+            # Escape or Tab cancels prefix mode
+            vs.prefix_mode = False
+            vs.prefix_input = ""
+            vs.message = ""
+
+        elif key == curses.KEY_BACKSPACE or key == 127:
+            vs.prefix_input = vs.prefix_input[:-1]
+
+        elif 32 <= key <= 126 and len(vs.prefix_input) < 6:
+            vs.prefix_input += chr(key)
+
+        # Update pending display for this line while typing
+        if vs.prefix_mode and vs.prefix_input:
+            vs.pending_prefixes[vs.cursor_line] = vs.prefix_input
+        elif vs.cursor_line in vs.pending_prefixes and not vs.prefix_mode:
+            vs.pending_prefixes.pop(vs.cursor_line, None)
+
+        return False
 
     def _save_and_quit(self) -> None:
         if self.buffer.modified and self.buffer.filepath:

@@ -299,12 +299,21 @@ class App:
             self.prefix_area._pending.pop(vs.cursor_line, None)
 
     def _execute_staged_prefixes(self) -> None:
-        """Execute all pending prefix commands in line order."""
+        """Execute all pending prefix commands.
+
+        Two passes: source commands (MM, CC, D, I, R, C, M) first so the
+        clipboard is populated before paste commands (A, B) run.
+        """
         vs = self.vs
         last_message = ""
-        for line_idx in sorted(self.prefix_area._pending.keys()):
-            raw = self.prefix_area._pending.get(line_idx, "")
-            if not raw:
+        pending = dict(self.prefix_area._pending)
+        paste_cmds = {"A", "B"}
+
+        # Pass 1: everything except A/B, in line order
+        for line_idx in sorted(pending.keys()):
+            raw = pending[line_idx]
+            cmd_name, _ = self.prefix_area.registry.normalize(raw)
+            if cmd_name in paste_cmds:
                 continue
             result = self.prefix_area.enter_prefix(line_idx, raw)
             if result is not None:
@@ -315,6 +324,21 @@ class App:
                     self._scroll_to_cursor()
             else:
                 last_message = "Waiting for block partner..."
+
+        # Pass 2: paste commands (A/B), in line order
+        for line_idx in sorted(pending.keys()):
+            raw = pending[line_idx]
+            cmd_name, _ = self.prefix_area.registry.normalize(raw)
+            if cmd_name not in paste_cmds:
+                continue
+            result = self.prefix_area.enter_prefix(line_idx, raw)
+            if result is not None:
+                if result.message:
+                    last_message = result.message
+                if result.cursor_hint is not None:
+                    vs.cursor_line = max(0, min(result.cursor_hint, len(self.buffer) - 1))
+                    self._scroll_to_cursor()
+
         vs.message = last_message
 
     def _save_and_quit(self) -> None:

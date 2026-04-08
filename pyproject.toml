@@ -10,6 +10,27 @@ readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
 dependencies = []
+authors = [
+    { name = "mrthock", email = "m64357@gmail.com" }
+]
+keywords = ["editor", "ispf", "terminal", "tui", "mainframe", "zos"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Text Editors",
+]
+
+[project.urls]
+Homepage = "https://github.com/mrthock/notispf"
+Repository = "https://github.com/mrthock/notispf"
+"Bug Tracker" = "https://github.com/mrthock/notispf/issues"
 
 [project.scripts]
 notispf = "notispf.__main__:main"

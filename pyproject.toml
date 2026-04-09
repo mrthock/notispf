@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "notispf"
-version = "1.0.1"
+version = "1.0.2"
 description = "A terminal text editor inspired by the ISPF editor from z/OS"
 readme = "README.md"
 license = "MIT"

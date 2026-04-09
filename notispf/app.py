@@ -81,6 +81,9 @@ class App:
         if vs.command_mode:
             return self._handle_command_key(key)
 
+        if vs.help_mode:
+            return self._handle_help_key(key)
+
         if vs.prefix_mode:
             return self._handle_prefix_key(key)
 
@@ -182,6 +185,20 @@ class App:
 
         return False
 
+    def _handle_help_key(self, key: int) -> bool:
+        vs = self.vs
+        rows, _ = self.display.stdscr.getmaxyx()
+        content_rows = rows - 2
+        max_scroll = max(0, len(self.display._HELP_LINES) - content_rows)
+        if key in (curses.KEY_DOWN, curses.KEY_NPAGE, curses.KEY_F8):
+            vs.help_scroll = min(vs.help_scroll + (content_rows if key != curses.KEY_DOWN else 1), max_scroll)
+        elif key in (curses.KEY_UP, curses.KEY_PPAGE, curses.KEY_F7):
+            vs.help_scroll = max(vs.help_scroll - (content_rows if key != curses.KEY_UP else 1), 0)
+        else:
+            vs.help_mode = False
+            vs.help_scroll = 0
+        return False
+
     def _handle_command_key(self, key: int) -> bool:
         vs = self.vs
         if key in (curses.KEY_ENTER, ord('\n'), ord('\r')):
@@ -213,6 +230,11 @@ class App:
             return f"Parse error: {raw}"
 
         cmd = tokens[0] if tokens else ""
+
+        if cmd == "HELP":
+            self.vs.help_mode = True
+            self.vs.help_scroll = 0
+            return ""
 
         if cmd == "CLEAR":
             self.vs.highlight_pattern = ""

@@ -35,6 +35,8 @@ class ViewState:
     show_cols: bool = False     # True when column ruler is visible
     col_offset: int = 0        # horizontal scroll offset (columns shifted left)
     highlight_pattern: str = "" # pattern to highlight (empty = none)
+    help_mode: bool = False     # True when help screen is visible
+    help_scroll: int = 0        # top line of help screen
 
 
 # Layout constants
@@ -73,9 +75,13 @@ class Display:
         vs.screen_cols = cols
 
         self._render_status(buffer, vs, cols)
-        self._render_content(buffer, prefix_area, vs, rows, cols)
-        self._render_bottom(vs, rows, cols)
-        self._place_cursor(vs, rows)
+        if vs.help_mode:
+            self._render_help(vs, rows, cols)
+            self._render_bottom(vs, rows, cols)
+        else:
+            self._render_content(buffer, prefix_area, vs, rows, cols)
+            self._render_bottom(vs, rows, cols)
+            self._place_cursor(vs, rows)
 
         self.stdscr.noutrefresh()
         curses.doupdate()
@@ -256,6 +262,74 @@ class Display:
         if vs.open_block_line == buf_idx:
             return vs.open_block_cmd[:6]
         return prefix_area.get_display_content(buf_idx, line_number)
+
+    # ------------------------------------------------------------------
+    # Help screen
+    # ------------------------------------------------------------------
+
+    _HELP_LINES = [
+        "  notispf — Help                                          Press any key to exit",
+        "",
+        "  COMMAND LINE  (press = or F6 to open)",
+        "  " + "─" * 60,
+        "  SAVE                   Save file",
+        "  FILE                   Save and exit",
+        "  CANCEL / QUIT          Exit without saving",
+        "  COPY filename          Copy buffer to another file",
+        "  FIND \"pat\" [col]       Find next occurrence (col = start column)",
+        "  CHANGE \"o\" \"n\" [opts]  Change text  (opts: ALL, col, .lbl .lbl)",
+        "  EXCLUDE \"pat\" [ALL|n]  Exclude matching lines from view",
+        "  SHOW ALL               Un-exclude all lines",
+        "  DELETE \"pat\" [ALL|n]   Delete lines matching pattern",
+        "  DELETE X ALL           Delete all excluded lines",
+        "  DELETE NX ALL          Delete all non-excluded lines",
+        "  COLS                   Toggle column ruler",
+        "  CLEAR                  Clear search/change highlighting",
+        "  HELP                   Show this screen",
+        "",
+        "  PREFIX COMMANDS  (Tab to reach prefix area)",
+        "  " + "─" * 60,
+        "  D / Dn    Delete line(s)          DD        Delete block",
+        "  I / In    Insert blank line(s)",
+        "  R / Rn    Repeat line             RR        Repeat block",
+        "  C / Cn    Copy line(s)            CC        Copy block",
+        "  M / Mn    Move line(s)            MM        Move block",
+        "  A         Paste after this line",
+        "  B         Paste before this line",
+        "  O / On    Overlay clipboard       OO        Overlay block",
+        "  X / Xn    Exclude line(s)         XX        Exclude block",
+        "  S / Sn    Show (un-exclude)       SS        Show block",
+        "",
+        "  FUNCTION KEYS",
+        "  " + "─" * 60,
+        "  F3          Save and exit         F5        Save",
+        "  F6  / =     Open command line     F12       Exit without saving",
+        "  F7  / PgUp  Scroll up             F8/PgDn   Scroll down",
+        "  F10         Scroll left           F11       Scroll right",
+        "  Tab         Move to prefix area",
+        "  Shift+Tab   Move to previous line",
+        "",
+        "  NAVIGATION",
+        "  " + "─" * 60,
+        "  Arrow keys  Move cursor           Home/End  Start/end of line",
+        "  Ctrl-A      Start of line         Ctrl-E    End of line",
+        "",
+    ]
+
+    def _render_help(self, vs: ViewState, rows: int, cols: int) -> None:
+        content_rows = rows - 2
+        lines = self._HELP_LINES
+        for screen_row in range(content_rows):
+            row = screen_row + 1
+            line_idx = vs.help_scroll + screen_row
+            if line_idx < len(lines):
+                text = lines[line_idx][:cols].ljust(cols)[:cols]
+                attr = curses.color_pair(_CP_STATUS) if screen_row == 0 \
+                    else curses.color_pair(_CP_TEXT)
+                self._addstr_clipped(row, 0, text, attr)
+            else:
+                self._addstr_clipped(row, 0, " " * cols,
+                                     curses.color_pair(_CP_TEXT))
 
     # ------------------------------------------------------------------
     # Bottom row: message or command input

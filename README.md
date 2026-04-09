@@ -1,15 +1,44 @@
 # notispf
 
-A terminal text editor for Linux inspired by the ISPF editor from z/OS mainframes.
+A terminal text editor for Linux and macOS inspired by the ISPF editor from z/OS mainframes.
 Runs in your terminal like vim or nano, with the prefix command area that ISPF users know and love.
 
 ## Installation
+
+### Download a binary (no Python required)
+
+Go to the [Releases page](https://github.com/mrthock/notispf/releases) and download the binary for your platform:
+
+| Platform | File |
+|----------|------|
+| Linux    | `notispf-linux` |
+| macOS    | `notispf-macos` |
+| Windows  | `notispf-windows.exe` |
+
+**Linux / macOS:**
+```bash
+chmod +x notispf-linux   # or notispf-macos
+./notispf-linux myfile.txt
+```
+
+Optionally move it somewhere on your PATH:
+```bash
+mv notispf-linux ~/.local/bin/notispf
+```
+
+**macOS note:** macOS will warn that the binary is from an unidentified developer. To clear the warning:
+```bash
+xattr -d com.apple.quarantine ./notispf-macos
+```
+Then run it normally.
+
+### Via pip
 
 ```bash
 pip install notispf
 ```
 
-Or run directly from source:
+### From source
 
 ```bash
 git clone https://github.com/mrthock/notispf
@@ -170,7 +199,7 @@ registry.register_line_cmd(CommandSpec("T", cmd_trim, description="Trim trailing
 
 That's it — no changes to the prefix state machine, display, or app controller needed.
 
-See [docs/architecture.md](docs/architecture.md) for a deeper overview of the codebase.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for a deeper overview of the codebase.
 
 ## License
 

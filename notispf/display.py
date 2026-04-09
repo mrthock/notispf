@@ -299,6 +299,8 @@ class Display:
         "  O / On    Overlay clipboard       OO        Overlay block",
         "  X / Xn    Exclude line(s)         XX        Exclude block",
         "  S / Sn    Show (un-exclude)       SS        Show block",
+        "  >n        Indent right n cols     >>n       Indent block right n cols",
+        "  <n        Indent left n cols      <<n       Indent block left n cols",
         "",
         "  FUNCTION KEYS",
         "  " + "─" * 60,

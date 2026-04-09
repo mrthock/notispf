@@ -19,13 +19,13 @@ def cmd_show(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
     return EditorResult(success=True, message="Line(s) shown")
 
 
-def cmd_exclude_block(buffer: Buffer, start_idx: int, end_idx: int) -> EditorResult:
+def cmd_exclude_block(buffer: Buffer, start_idx: int, end_idx: int, numeric_arg: int = 1) -> EditorResult:
     count = end_idx - start_idx + 1
     buffer.exclude_lines(start_idx, count)
     return EditorResult(success=True, message=f"{count} line(s) excluded")
 
 
-def cmd_show_block(buffer: Buffer, start_idx: int, end_idx: int) -> EditorResult:
+def cmd_show_block(buffer: Buffer, start_idx: int, end_idx: int, numeric_arg: int = 1) -> EditorResult:
     count = end_idx - start_idx + 1
     buffer.show_lines(start_idx, count)
     return EditorResult(success=True, message=f"{count} line(s) shown")

@@ -81,7 +81,7 @@ class PrefixArea:
         self._pending.pop(entry.line_idx, None)
 
         spec = self.registry.get_line_cmd(entry.cmd_name)
-        result = spec.handler(self.buffer, start_idx, end_idx)
+        result = spec.handler(self.buffer, start_idx, end_idx, open.numeric_arg)
         result.cleared_prefixes.extend([open.line_idx, entry.line_idx])
         return result
 

@@ -77,6 +77,20 @@ def cmd_overlay(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
     return EditorResult(success=True, cursor_hint=line_idx)
 
 
+def cmd_indent_right(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
+    """Shift line right by count columns."""
+    buffer.replace_line(line_idx, " " * count + buffer.lines[line_idx].text)
+    return EditorResult(success=True)
+
+
+def cmd_indent_left(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
+    """Shift line left by count columns, removing up to count leading spaces."""
+    text = buffer.lines[line_idx].text
+    leading = len(text) - len(text.lstrip(" "))
+    buffer.replace_line(line_idx, text[min(count, leading):])
+    return EditorResult(success=True)
+
+
 def register(registry: CommandRegistry) -> None:
     registry.register_line_cmd(CommandSpec("D", cmd_delete, description="Delete line(s)"))
     registry.register_line_cmd(CommandSpec("I", cmd_insert, description="Insert blank line(s)"))
@@ -86,3 +100,5 @@ def register(registry: CommandRegistry) -> None:
     registry.register_line_cmd(CommandSpec("A", cmd_after, description="Paste clipboard after this line"))
     registry.register_line_cmd(CommandSpec("B", cmd_before, description="Paste clipboard before this line"))
     registry.register_line_cmd(CommandSpec("O", cmd_overlay, description="Overlay clipboard onto this line"))
+    registry.register_line_cmd(CommandSpec(">", cmd_indent_right, description="Indent line right n columns"))
+    registry.register_line_cmd(CommandSpec("<", cmd_indent_left, description="Indent line left n columns"))

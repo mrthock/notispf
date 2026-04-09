@@ -108,6 +108,8 @@ You can stage commands on multiple lines before pressing Enter — they all exec
 | `Mn` | Move n lines |
 | `A` | Paste clipboard **after** this line |
 | `B` | Paste clipboard **before** this line |
+| `>n` | Indent right n columns (e.g. `>4` adds 4 spaces) |
+| `<n` | Indent left n columns (removes up to n leading spaces) |
 
 ### Block Commands
 
@@ -119,6 +121,8 @@ Type the command on the **first** line of the block, then again on the **last** 
 | `CC` | Copy block to clipboard |
 | `MM` | Move block (cut to clipboard) |
 | `RR` | Repeat block (insert a copy below) |
+| `>>n` | Indent block right n columns |
+| `<<n` | Indent block left n columns |
 
 Use `A` or `B` on a third line to place the clipboard after copying or moving.
 

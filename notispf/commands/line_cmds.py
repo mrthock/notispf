@@ -122,6 +122,16 @@ def cmd_hex_below(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
     return EditorResult(success=True, cursor_hint=line_idx)
 
 
+def cmd_hex_to_ascii(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
+    """HEXA — convert a hex line back to its ASCII text representation."""
+    text = buffer.lines[line_idx].text
+    try:
+        buffer.replace_line(line_idx, hex_to_line(text))
+    except ValueError:
+        return EditorResult(success=False, message="HEXA: line is not valid hex")
+    return EditorResult(success=True)
+
+
 def register(registry: CommandRegistry) -> None:
     registry.register_line_cmd(CommandSpec("D", cmd_delete, description="Delete line(s)"))
     registry.register_line_cmd(CommandSpec("I", cmd_insert, description="Insert blank line(s)"))
@@ -135,3 +145,4 @@ def register(registry: CommandRegistry) -> None:
     registry.register_line_cmd(CommandSpec("<", cmd_indent_left, description="Indent line left n columns"))
     registry.register_line_cmd(CommandSpec("HEX", cmd_hex, description="Replace line with hex representation"))
     registry.register_line_cmd(CommandSpec("HEXB", cmd_hex_below, description="Insert hex copy of line below"))
+    registry.register_line_cmd(CommandSpec("HEXA", cmd_hex_to_ascii, description="Convert hex line back to ASCII"))

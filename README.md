@@ -112,6 +112,7 @@ You can stage commands on multiple lines before pressing Enter — they all exec
 | `<n` | Indent left n columns (removes up to n leading spaces) |
 | `HEX` | Replace this line with its hex representation |
 | `HEXB` | Insert a hex copy of this line below it |
+| `HEXA` | Convert a hex line back to ASCII text |
 
 ### Block Commands
 

@@ -308,6 +308,7 @@ class Display:
         "  >n        Indent right n cols     >>n       Indent block right n cols",
         "  <n        Indent left n cols      <<n       Indent block left n cols",
         "  HEX       Replace line with hex   HEXB      Insert hex copy below",
+        "  HEXA      Convert hex line to ASCII",
         "",
         "  FUNCTION KEYS",
         "  " + "─" * 60,

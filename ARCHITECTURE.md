@@ -15,7 +15,7 @@ notispf/
 ├── find_change.py       FIND / CHANGE / EXCLUDE / DELETE engine
 └── commands/
     ├── registry.py      CommandSpec registry and normalize() parser
-    ├── line_cmds.py     D, I, R, C, M, A, B, O, >, <, HEX, HEXB implementations
+    ├── line_cmds.py     D, I, R, C, M, A, B, O, >, <, HEX, HEXB, HEXA implementations
     ├── block_cmds.py    DD, CC, MM, RR, OO, >>, << implementations
     └── exclude_cmds.py  X, XX, S, SS implementations
 ```

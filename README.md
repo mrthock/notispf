@@ -142,7 +142,7 @@ Use `A` or `B` on a third line to place the clipboard after copying or moving.
 
 ## Command Line
 
-Press **`=`** or **`F6`** to open the command line, then type a command and press Enter.
+Press **F6** to open the command line, then type a command and press Enter.
 
 ### File Commands
 
@@ -150,7 +150,14 @@ Press **`=`** or **`F6`** to open the command line, then type a command and pres
 |---------|--------|
 | `SAVE` | Save file |
 | `FILE` | Save and exit |
-| `CANCEL` or `QUIT` | Exit without saving |
+| `CANCEL` or `QUIT` or `CAN` | Exit without saving |
+
+### Undo / Redo
+
+| Command | Action |
+|---------|--------|
+| `UNDO` | Undo last change |
+| `REDO` | Redo last undone change |
 
 ### Find and Change
 
@@ -160,6 +167,8 @@ CHANGE "old" "new"
 CHANGE "old" "new" ALL
 CHANGE "old" "new" ALL .labelA .labelB
 ```
+
+Aliases: `F` for `FIND`, `C` for `CHANGE`.
 
 - `FIND` — locate next occurrence (case-insensitive by default)
 - `CHANGE` — replace next occurrence
@@ -179,6 +188,8 @@ Labels are used to define ranges for `CHANGE ... ALL .A .B`.
 | F5 | Save without exiting |
 | F6 | Open command line |
 | F12 | Exit without saving |
+| Ctrl+Z | Undo last change |
+| Ctrl+Y | Redo last undone change |
 
 ## Contributing
 

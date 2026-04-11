@@ -173,6 +173,12 @@ class App:
                 vs.prefix_input = self.prefix_area._pending.get(vs.cursor_line, "")
                 vs.message = "Type prefix command, Enter to execute, Esc to cancel"
 
+        # Undo / Redo
+        elif key == ord('\x1a'):  # Ctrl+Z
+            vs.message = "Undone" if self.buffer.undo() else "Nothing to undo"
+        elif key == ord('\x19'):  # Ctrl+Y
+            vs.message = "Redone" if self.buffer.redo() else "Nothing to redo"
+
         # Text editing (Phase 6 — placeholder)
         elif key == curses.KEY_BACKSPACE or key == 127:
             self._backspace()
@@ -233,6 +239,12 @@ class App:
 
         _aliases = {"F": "FIND", "C": "CHANGE", "CAN": "CANCEL"}
         cmd = _aliases.get(cmd, cmd)
+
+        if cmd == "UNDO":
+            return "Undone" if self.buffer.undo() else "Nothing to undo"
+
+        if cmd == "REDO":
+            return "Redone" if self.buffer.redo() else "Nothing to redo"
 
         if cmd == "HELP":
             self.vs.help_mode = True

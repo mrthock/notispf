@@ -231,6 +231,9 @@ class App:
 
         cmd = tokens[0] if tokens else ""
 
+        _aliases = {"F": "FIND", "C": "CHANGE", "CAN": "CANCEL"}
+        cmd = _aliases.get(cmd, cmd)
+
         if cmd == "HELP":
             self.vs.help_mode = True
             self.vs.help_scroll = 0

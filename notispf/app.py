@@ -126,6 +126,12 @@ class App:
             vs.command_input = ""
             vs.message = ""
 
+        # F1 = HELP
+        elif key == curses.KEY_F1:
+            vs.help_mode = True
+            vs.help_scroll = 0
+            vs.message = ""
+
         # F3 = FILE (save and quit)
         elif key == curses.KEY_F3:
             self._save_and_quit()

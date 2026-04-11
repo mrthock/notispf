@@ -113,6 +113,10 @@ You can stage commands on multiple lines before pressing Enter — they all exec
 | `HEX` | Replace this line with its hex representation |
 | `HEXB` | Insert a hex copy of this line below it |
 | `HEXA` | Convert a hex line back to ASCII text |
+| `UC` | Uppercase this line |
+| `UCn` | Uppercase n lines (e.g. `UC3`) |
+| `LC` | Lowercase this line |
+| `LCn` | Lowercase n lines |
 
 ### Block Commands
 

@@ -309,6 +309,7 @@ class Display:
         "  <n        Indent left n cols      <<n       Indent block left n cols",
         "  HEX       Replace line with hex   HEXB      Insert hex copy below",
         "  HEXA      Convert hex line to ASCII",
+        "  UC / UCn  Uppercase line(s)        LC / LCn  Lowercase line(s)",
         "",
         "  FUNCTION KEYS",
         "  " + "─" * 60,

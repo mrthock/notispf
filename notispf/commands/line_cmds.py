@@ -122,6 +122,20 @@ def cmd_hex_below(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
     return EditorResult(success=True, cursor_hint=line_idx)
 
 
+def cmd_uppercase(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
+    """UC — uppercase this line (or n lines)."""
+    for i in range(line_idx, min(line_idx + count, len(buffer))):
+        buffer.replace_line(i, buffer.lines[i].text.upper())
+    return EditorResult(success=True)
+
+
+def cmd_lowercase(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
+    """LC — lowercase this line (or n lines)."""
+    for i in range(line_idx, min(line_idx + count, len(buffer))):
+        buffer.replace_line(i, buffer.lines[i].text.lower())
+    return EditorResult(success=True)
+
+
 def cmd_hex_to_ascii(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
     """HEXA — convert a hex line back to its ASCII text representation."""
     text = buffer.lines[line_idx].text
@@ -146,3 +160,5 @@ def register(registry: CommandRegistry) -> None:
     registry.register_line_cmd(CommandSpec("HEX", cmd_hex, description="Replace line with hex representation"))
     registry.register_line_cmd(CommandSpec("HEXB", cmd_hex_below, description="Insert hex copy of line below"))
     registry.register_line_cmd(CommandSpec("HEXA", cmd_hex_to_ascii, description="Convert hex line back to ASCII"))
+    registry.register_line_cmd(CommandSpec("UC", cmd_uppercase, description="Uppercase line(s)"))
+    registry.register_line_cmd(CommandSpec("LC", cmd_lowercase, description="Lowercase line(s)"))

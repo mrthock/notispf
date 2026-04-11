@@ -85,12 +85,14 @@ def cmd_overlay(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
     clipboard = buffer.pop_clipboard()
     if not clipboard:
         return EditorResult(success=False, message="Nothing in clipboard")
+    buffer.begin_edit_group()
     for i in range(count):
         dest_idx = line_idx + i
         if dest_idx >= len(buffer):
             break
         src = clipboard[i % len(clipboard)]
         buffer.replace_line(dest_idx, overlay_text(src, buffer.lines[dest_idx].text))
+    buffer.end_edit_group()
     return EditorResult(success=True, cursor_hint=line_idx)
 
 
@@ -124,15 +126,19 @@ def cmd_hex_below(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
 
 def cmd_uppercase(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
     """UC — uppercase this line (or n lines)."""
+    buffer.begin_edit_group()
     for i in range(line_idx, min(line_idx + count, len(buffer))):
         buffer.replace_line(i, buffer.lines[i].text.upper())
+    buffer.end_edit_group()
     return EditorResult(success=True)
 
 
 def cmd_lowercase(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
     """LC — lowercase this line (or n lines)."""
+    buffer.begin_edit_group()
     for i in range(line_idx, min(line_idx + count, len(buffer))):
         buffer.replace_line(i, buffer.lines[i].text.lower())
+    buffer.end_edit_group()
     return EditorResult(success=True)
 
 

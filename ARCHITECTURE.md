@@ -36,6 +36,17 @@ Every mutation (`replace_line`, `insert_lines`, `delete_lines`, `repeat_lines`)
 calls `_snapshot()` first, which deep-copies the current line list onto the undo
 stack and clears the redo stack. `undo()` and `redo()` swap snapshots in and out.
 
+**Edit group coalescing** — `begin_edit_group()` takes one snapshot and sets a
+`_grouping` flag so that subsequent `_snapshot()` calls within the same group are
+no-ops. `end_edit_group()` clears the flag. This ensures that:
+
+- Consecutive keystrokes (typing, backspace, delete, Enter) share a single undo
+  step — the group is started on the first keystroke and ended by any
+  non-text-edit key (navigation, F-keys, mode changes).
+- Multi-line operations (`CHANGE ALL`, `DELETE ALL`, block indent `>>`/`<<`,
+  `UC`, `LC`, `OO`, etc.) wrap their inner loops in
+  `begin_edit_group()` / `end_edit_group()` so they also undo atomically.
+
 The clipboard (`push_clipboard` / `pop_clipboard`) is a plain list of strings.
 It is not part of the undo stack — paste commands read the current clipboard value
 at execution time.
@@ -182,7 +193,7 @@ App._handle_key()
     │
     └─ text edit ──► Buffer.replace_line() / insert_lines() / delete_lines()
                           │
-                          ▼ (every mutation snapshots undo stack)
+                          ▼ (_snapshot() is a no-op inside a begin/end_edit_group())
                       Buffer._snapshot()
 
 App._render()

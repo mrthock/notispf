@@ -37,25 +37,31 @@ def cmd_overlay_block(buffer: Buffer, start_idx: int, end_idx: int, numeric_arg:
     clipboard = buffer.pop_clipboard()
     if not clipboard:
         return EditorResult(success=False, message="Nothing in clipboard")
+    buffer.begin_edit_group()
     for i, dest_idx in enumerate(range(start_idx, end_idx + 1)):
         src = clipboard[i % len(clipboard)]
         buffer.replace_line(dest_idx, overlay_text(src, buffer.lines[dest_idx].text))
+    buffer.end_edit_group()
     return EditorResult(success=True, cursor_hint=start_idx)
 
 
 def cmd_indent_right_block(buffer: Buffer, start_idx: int, end_idx: int, numeric_arg: int = 1) -> EditorResult:
     """Shift all lines in block right by numeric_arg columns."""
+    buffer.begin_edit_group()
     for i in range(start_idx, end_idx + 1):
         buffer.replace_line(i, " " * numeric_arg + buffer.lines[i].text)
+    buffer.end_edit_group()
     return EditorResult(success=True)
 
 
 def cmd_indent_left_block(buffer: Buffer, start_idx: int, end_idx: int, numeric_arg: int = 1) -> EditorResult:
     """Shift all lines in block left by numeric_arg columns, removing up to that many leading spaces."""
+    buffer.begin_edit_group()
     for i in range(start_idx, end_idx + 1):
         text = buffer.lines[i].text
         leading = len(text) - len(text.lstrip(" "))
         buffer.replace_line(i, text[min(numeric_arg, leading):])
+    buffer.end_edit_group()
     return EditorResult(success=True)
 
 

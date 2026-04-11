@@ -64,6 +64,7 @@ class FindChangeEngine:
         needle = old if case_sensitive else old.lower()
         required_col = (col - 1) if col is not None else None
 
+        self.buffer.begin_edit_group()
         for i, line in enumerate(self.buffer.lines):
             if line.excluded:
                 continue
@@ -80,6 +81,7 @@ class FindChangeEngine:
                         else text.replace(old, new)
                     self.buffer.replace_line(i, new_text)
                     count += haystack.count(needle)
+        self.buffer.end_edit_group()
         return count
 
     def change_in_range(self, old: str, new: str,
@@ -99,6 +101,7 @@ class FindChangeEngine:
         needle = old if case_sensitive else old.lower()
         required_col = (col - 1) if col is not None else None
 
+        self.buffer.begin_edit_group()
         for i in range(start_idx, end_idx + 1):
             if self.buffer.lines[i].excluded:
                 continue
@@ -115,6 +118,7 @@ class FindChangeEngine:
                         else text.replace(old, new)
                     self.buffer.replace_line(i, new_text)
                     count += haystack.count(needle)
+        self.buffer.end_edit_group()
         return count
 
 
@@ -138,15 +142,19 @@ class FindChangeEngine:
     def delete_excluded(self) -> int:
         """Delete all excluded lines. Returns count of lines deleted."""
         to_delete = [i for i, line in enumerate(self.buffer.lines) if line.excluded]
+        self.buffer.begin_edit_group()
         for i in reversed(to_delete):
             self.buffer.delete_lines(i, 1)
+        self.buffer.end_edit_group()
         return len(to_delete)
 
     def delete_non_excluded(self) -> int:
         """Delete all non-excluded lines. Returns count of lines deleted."""
         to_delete = [i for i, line in enumerate(self.buffer.lines) if not line.excluded]
+        self.buffer.begin_edit_group()
         for i in reversed(to_delete):
             self.buffer.delete_lines(i, 1)
+        self.buffer.end_edit_group()
         return len(to_delete)
 
     def delete_matching(self, pattern: str, limit: int | None = None,
@@ -165,9 +173,10 @@ class FindChangeEngine:
                     break
 
         # Delete in reverse order so indices stay valid
+        self.buffer.begin_edit_group()
         for i in reversed(to_delete):
             self.buffer.delete_lines(i, 1)
-
+        self.buffer.end_edit_group()
         return len(to_delete)
 
 

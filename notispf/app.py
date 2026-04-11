@@ -81,13 +81,22 @@ class App:
         vs = self.vs
 
         if vs.command_mode:
+            self.buffer.end_edit_group()
             return self._handle_command_key(key)
 
         if vs.help_mode:
+            self.buffer.end_edit_group()
             return self._handle_help_key(key)
 
         if vs.prefix_mode:
+            self.buffer.end_edit_group()
             return self._handle_prefix_key(key)
+
+        # End any active edit group for non-text-edit keys
+        _text_edit_keys = {curses.KEY_BACKSPACE, 127, curses.KEY_DC,
+                           curses.KEY_ENTER, ord('\n'), ord('\r')}
+        if key not in _text_edit_keys and not (32 <= key <= 126):
+            self.buffer.end_edit_group()
 
         rows, _ = self.display.stdscr.getmaxyx()
         content_rows = rows - 2 - (1 if vs.show_cols else 0)
@@ -350,7 +359,7 @@ class App:
             except ValueError:
                 return f"Parse error: {raw}"
             if len(orig_tokens) < 2:
-                return 'Usage: EXCLUDE "pattern" [ALL | n]'
+                return "Usage: EXCLUDE 'pattern' [ALL | n]"
             pattern = orig_tokens[1]
             rest = orig_tokens[2:]
             if rest:
@@ -372,7 +381,7 @@ class App:
             except ValueError:
                 return f"Parse error: {raw}"
             if len(orig_tokens) < 2:
-                return 'Usage: DELETE "pattern" [ALL | n] | DELETE X ALL | DELETE NX ALL'
+                return "Usage: DELETE 'pattern' [ALL | n] | DELETE X ALL | DELETE NX ALL"
 
             qualifier = orig_tokens[1].upper()
 
@@ -434,7 +443,7 @@ class App:
             except ValueError:
                 return f"Parse error: {raw}"
             if len(orig_tokens) < 3:
-                return 'Usage: CHANGE "old" "new" [ALL] [.lbl1 .lbl2] [column]'
+                return "Usage: CHANGE 'old' 'new' [ALL] [.lbl1 .lbl2] [column]"
             old, new = orig_tokens[1], orig_tokens[2]
             rest = [t.upper() for t in orig_tokens[3:]]
             # Extract optional column number — any token that is a positive integer
@@ -599,6 +608,7 @@ class App:
             vs.col_offset = vs.cursor_col - text_width + 1
 
     def _insert_char(self, ch: str) -> None:
+        self.buffer.begin_edit_group()
         vs = self.vs
         if not self.buffer.lines:
             self.buffer.lines.append(__import__('notispf.buffer', fromlist=['Line']).Line(text=""))
@@ -609,6 +619,7 @@ class App:
         self._scroll_col_to_cursor()
 
     def _backspace(self) -> None:
+        self.buffer.begin_edit_group()
         vs = self.vs
         if not self.buffer.lines:
             return
@@ -631,6 +642,7 @@ class App:
             self._scroll_col_to_cursor()
 
     def _delete_char(self) -> None:
+        self.buffer.begin_edit_group()
         vs = self.vs
         if not self.buffer.lines:
             return
@@ -646,6 +658,7 @@ class App:
             self.buffer.delete_lines(vs.cursor_line + 1, 1)
 
     def _enter_key(self) -> None:
+        self.buffer.begin_edit_group()
         vs = self.vs
         if not self.buffer.lines:
             self.buffer.lines.append(__import__('notispf.buffer', fromlist=['Line']).Line(text=""))

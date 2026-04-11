@@ -178,11 +178,13 @@ Press **F6** to open the command line, then type a command and press Enter.
 ### Find and Change
 
 ```
-FIND "text"
-CHANGE "old" "new"
-CHANGE "old" "new" ALL
-CHANGE "old" "new" ALL .labelA .labelB
+FIND 'text'
+CHANGE 'old' 'new'
+CHANGE 'old' 'new' ALL
+CHANGE 'old' 'new' ALL .labelA .labelB
 ```
+
+Both single and double quotes are accepted as delimiters.
 
 Aliases: `F` for `FIND`, `C` for `CHANGE`.
 

@@ -19,6 +19,7 @@ class Buffer:
         self._undo_stack: list[list[Line]] = []
         self._redo_stack: list[list[Line]] = []
         self._clipboard: list[str] = []
+        self._grouping: bool = False  # True while coalescing text edits
 
         if filepath:
             self.load_file(filepath)
@@ -34,6 +35,7 @@ class Buffer:
         self.modified = False
         self._undo_stack.clear()
         self._redo_stack.clear()
+        self._grouping = False
 
     def save_file(self, filepath: str | None = None) -> None:
         target = filepath or self.filepath
@@ -50,8 +52,21 @@ class Buffer:
     #-------------------------------------------------------------------
 
     def _snapshot(self) -> None:
+        if self._grouping:
+            return
         self._undo_stack.append(copy.deepcopy(self.lines))
         self._redo_stack.clear()
+
+    def begin_edit_group(self) -> None:
+        """Start a coalesced edit group. Takes one snapshot; subsequent mutations share it."""
+        if not self._grouping:
+            self._undo_stack.append(copy.deepcopy(self.lines))
+            self._redo_stack.clear()
+            self._grouping = True
+
+    def end_edit_group(self) -> None:
+        """End the coalesced edit group so the next mutation gets its own snapshot."""
+        self._grouping = False
 
     def undo(self) -> bool:
         if not self._undo_stack:

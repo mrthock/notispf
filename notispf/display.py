@@ -93,7 +93,7 @@ class Display:
     def _render_status(self, buffer, vs: ViewState, cols: int) -> None:
         filename = buffer.filepath or "[No File]"
         modified = " [+]" if buffer.modified else ""
-        position = f"  Line {vs.cursor_line + 1}/{len(buffer)}"
+        position = f"  Line {vs.cursor_line + 1}/{len(buffer)}  Col {vs.cursor_col + 1}"
         left = f" notispf  {filename}{modified}"
         right = position + "  "
         padding = cols - len(left) - len(right)

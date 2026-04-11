@@ -135,13 +135,22 @@ class App:
         elif key == curses.KEY_F12:
             return True
 
-        # F5 = save without quit
+        # F5 = RFIND (repeat last find)
         elif key == curses.KEY_F5:
-            try:
-                self.buffer.save_file()
-                vs.message = f"File saved: {self.buffer.filepath}"
-            except Exception as e:
-                vs.message = f"Save error: {e}"
+            pattern = self.find_engine._last_find
+            if not pattern:
+                vs.message = "No previous FIND"
+            else:
+                pos = self.find_engine.find_next(pattern)
+                if pos:
+                    vs.cursor_line, vs.cursor_col = pos
+                    self._scroll_to_cursor()
+                    self._scroll_col_to_cursor()
+                    vs.highlight_pattern = pattern
+                    vs.message = f"Found: {pattern!r}"
+                else:
+                    vs.highlight_pattern = ""
+                    vs.message = f"Not found: {pattern!r}"
 
         # Tab: prefix(N) -> text(N),  text(N) -> prefix(N+1)
         elif key == ord('\t'):

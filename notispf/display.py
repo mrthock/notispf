@@ -306,7 +306,7 @@ class Display:
         "",
         "  FUNCTION KEYS",
         "  " + "─" * 60,
-        "  F3          Save and exit         F5        Save",
+        "  F3          Save and exit         F5        Repeat last FIND",
         "  F6          Open command line     F12       Exit without saving",
         "  Ctrl+Z      Undo                  Ctrl+Y    Redo",
         "  F7  / PgUp  Scroll up             F8/PgDn   Scroll down",

@@ -185,7 +185,7 @@ Labels are used to define ranges for `CHANGE ... ALL .A .B`.
 | Key | Action |
 |-----|--------|
 | F3 | Save and exit |
-| F5 | Save without exiting |
+| F5 | Repeat last FIND (RFIND) |
 | F6 | Open command line |
 | F12 | Exit without saving |
 | Ctrl+Z | Undo last change |

@@ -121,7 +121,7 @@ class App:
             self._scroll_col_to_cursor()
 
         # Enter command mode
-        elif key == ord('=') or key == curses.KEY_F6:
+        elif key == curses.KEY_F6:
             vs.command_mode = True
             vs.command_input = ""
             vs.message = ""

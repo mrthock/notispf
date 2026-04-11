@@ -270,7 +270,7 @@ class Display:
     _HELP_LINES = [
         "  notispf — Help                                          Press any key to exit",
         "",
-        "  COMMAND LINE  (press = or F6 to open)",
+        "  COMMAND LINE  (press F6 to open)",
         "  " + "─" * 60,
         "  SAVE                   Save file",
         "  FILE                   Save and exit",
@@ -305,7 +305,7 @@ class Display:
         "  FUNCTION KEYS",
         "  " + "─" * 60,
         "  F3          Save and exit         F5        Save",
-        "  F6  / =     Open command line     F12       Exit without saving",
+        "  F6          Open command line     F12       Exit without saving",
         "  F7  / PgUp  Scroll up             F8/PgDn   Scroll down",
         "  F10         Scroll left           F11       Scroll right",
         "  Tab         Move to prefix area",

@@ -15,7 +15,7 @@ notispf/
 ├── find_change.py       FIND / CHANGE / EXCLUDE / DELETE engine
 └── commands/
     ├── registry.py      CommandSpec registry and normalize() parser
-    ├── line_cmds.py     D, I, R, C, M, A, B, O, >, < implementations
+    ├── line_cmds.py     D, I, R, C, M, A, B, O, >, <, HEX, HEXB implementations
     ├── block_cmds.py    DD, CC, MM, RR, OO, >>, << implementations
     └── exclude_cmds.py  X, XX, S, SS implementations
 ```
@@ -102,12 +102,12 @@ message and both entries cleared.
 
 **`ViewState`** is a plain dataclass that holds all rendering state:
 cursor position, scroll offsets, mode flags (`command_mode`, `prefix_mode`,
-`help_mode`), the live prefix input buffer, the highlight pattern, etc. It is
-owned by `App` and passed into `Display.render()` on every frame.
+`help_mode`, `hex_mode`), the live prefix input buffer, the highlight pattern,
+etc. It is owned by `App` and passed into `Display.render()` on every frame.
 
 The render pipeline per frame:
 
-1. `_render_status()` — top status bar (filename, modified flag, line/total)
+1. `_render_status()` — top status bar (filename, modified flag, line/total, cursor column, `[HEX]` indicator)
 2. `_render_content()` or `_render_help()` — main content area
 3. `_render_bottom()` — bottom row (command input or message)
 4. `_place_cursor()` — moves the hardware cursor to the right position

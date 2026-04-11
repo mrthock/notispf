@@ -55,7 +55,7 @@ notispf <file>
 ## Screen Layout
 
 ```
- notispf  filename.txt                              Line 1/42
+ notispf  filename.txt                    Line 1/42  Col 1
 000001|This is the first line of your file
 000002|Second line here
 000003|Third line
@@ -64,7 +64,7 @@ notispf <file>
 Type prefix command, Enter to execute, Esc to cancel
 ```
 
-- **Status bar** (top) — filename, modified flag `[+]`, current line/total
+- **Status bar** (top) — filename, modified flag `[+]`, current line/total, cursor column, `[HEX]` when hex mode is active
 - **Prefix column** (left, 6 chars) — shows line numbers; type commands here
 - **Text area** (right of `|`) — edit your file
 - **Message/command line** (bottom) — status messages and command input
@@ -199,6 +199,10 @@ Labels are used to define ranges for `CHANGE ... ALL .A .B`.
 | F3 | Save and exit |
 | F5 | Repeat last FIND (RFIND) |
 | F6 | Open command line |
+| F7 / Page Up | Scroll up |
+| F8 / Page Down | Scroll down |
+| F10 | Scroll left |
+| F11 | Scroll right |
 | F12 | Exit without saving |
 | Ctrl+Z | Undo last change |
 | Ctrl+Y | Redo last undone change |

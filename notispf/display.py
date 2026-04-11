@@ -37,6 +37,7 @@ class ViewState:
     highlight_pattern: str = "" # pattern to highlight (empty = none)
     help_mode: bool = False     # True when help screen is visible
     help_scroll: int = 0        # top line of help screen
+    hex_mode: bool = False      # True when HEX ON is active
 
 
 # Layout constants
@@ -93,8 +94,9 @@ class Display:
     def _render_status(self, buffer, vs: ViewState, cols: int) -> None:
         filename = buffer.filepath or "[No File]"
         modified = " [+]" if buffer.modified else ""
+        hex_ind = " [HEX]" if vs.hex_mode else ""
         position = f"  Line {vs.cursor_line + 1}/{len(buffer)}  Col {vs.cursor_col + 1}"
-        left = f" notispf  {filename}{modified}"
+        left = f" notispf  {filename}{modified}{hex_ind}"
         right = position + "  "
         padding = cols - len(left) - len(right)
         if padding < 0:
@@ -285,6 +287,8 @@ class Display:
         "  DELETE NX ALL          Delete all non-excluded lines",
         "  UNDO                   Undo last change",
         "  REDO                   Redo last undone change",
+        "  HEX ON                 Convert entire file to hex display",
+        "  HEX OFF                Convert hex display back to text",
         "  COLS                   Toggle column ruler",
         "  CLEAR                  Clear search/change highlighting",
         "  HELP                   Show this screen",
@@ -303,6 +307,7 @@ class Display:
         "  S / Sn    Show (un-exclude)       SS        Show block",
         "  >n        Indent right n cols     >>n       Indent block right n cols",
         "  <n        Indent left n cols      <<n       Indent block left n cols",
+        "  HEX       Replace line with hex   HEXB      Insert hex copy below",
         "",
         "  FUNCTION KEYS",
         "  " + "─" * 60,

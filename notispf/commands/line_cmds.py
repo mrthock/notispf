@@ -1,7 +1,24 @@
-"""Single-line prefix command implementations: D, I, R, C, M, A, B."""
+"""Single-line prefix command implementations: D, I, R, C, M, A, B, HEX, HEXB."""
 from __future__ import annotations
 from notispf.buffer import Buffer
 from notispf.commands.registry import CommandRegistry, CommandSpec, EditorResult
+
+
+# ---------------------------------------------------------------------------
+# Hex utilities (used by prefix commands and HEX ON/OFF command line)
+# ---------------------------------------------------------------------------
+
+def line_to_hex(text: str) -> str:
+    """Convert a text line to space-separated uppercase hex bytes."""
+    return ' '.join(f'{ord(c):02X}' for c in text)
+
+
+def hex_to_line(hex_str: str) -> str:
+    """Convert a space-separated hex string back to text. Raises ValueError on bad input."""
+    tokens = hex_str.split()
+    if not tokens:
+        return ''
+    return ''.join(chr(int(t, 16)) for t in tokens)
 
 
 def cmd_delete(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
@@ -91,6 +108,20 @@ def cmd_indent_left(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
     return EditorResult(success=True)
 
 
+def cmd_hex(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
+    """HEX — replace this line with its hex representation."""
+    text = buffer.lines[line_idx].text
+    buffer.replace_line(line_idx, line_to_hex(text))
+    return EditorResult(success=True)
+
+
+def cmd_hex_below(buffer: Buffer, line_idx: int, count: int) -> EditorResult:
+    """HEXB — insert a hex copy of this line below it."""
+    text = buffer.lines[line_idx].text
+    buffer.insert_lines(line_idx, [line_to_hex(text)])
+    return EditorResult(success=True, cursor_hint=line_idx)
+
+
 def register(registry: CommandRegistry) -> None:
     registry.register_line_cmd(CommandSpec("D", cmd_delete, description="Delete line(s)"))
     registry.register_line_cmd(CommandSpec("I", cmd_insert, description="Insert blank line(s)"))
@@ -102,3 +133,5 @@ def register(registry: CommandRegistry) -> None:
     registry.register_line_cmd(CommandSpec("O", cmd_overlay, description="Overlay clipboard onto this line"))
     registry.register_line_cmd(CommandSpec(">", cmd_indent_right, description="Indent line right n columns"))
     registry.register_line_cmd(CommandSpec("<", cmd_indent_left, description="Indent line left n columns"))
+    registry.register_line_cmd(CommandSpec("HEX", cmd_hex, description="Replace line with hex representation"))
+    registry.register_line_cmd(CommandSpec("HEXB", cmd_hex_below, description="Insert hex copy of line below"))

@@ -6,6 +6,8 @@ import os
 from notispf.buffer import Buffer
 from notispf.commands.registry import CommandRegistry
 from notispf.commands import line_cmds, block_cmds, exclude_cmds
+from notispf.commands.line_cmds import line_to_hex, hex_to_line
+from notispf.buffer import Line
 from notispf.display import Display, ViewState, TEXT_OFFSET
 from notispf.find_change import FindChangeEngine
 from notispf.prefix import PrefixArea
@@ -260,6 +262,39 @@ class App:
 
         if cmd == "REDO":
             return "Redone" if self.buffer.redo() else "Nothing to redo"
+
+        if cmd == "HEX":
+            sub = tokens[1] if len(tokens) > 1 else ""
+            if sub == "ON":
+                if self.vs.hex_mode:
+                    return "Already in HEX mode"
+                self.buffer._snapshot()
+                for i, line in enumerate(self.buffer.lines):
+                    self.buffer.lines[i] = Line(
+                        text=line_to_hex(line.text), label=line.label, modified=True)
+                self.buffer.modified = True
+                self.vs.hex_mode = True
+                return "HEX ON — use HEX OFF to restore"
+            elif sub == "OFF":
+                if not self.vs.hex_mode:
+                    return "Not in HEX mode"
+                new_lines = []
+                bad = []
+                for i, line in enumerate(self.buffer.lines):
+                    try:
+                        new_lines.append(Line(
+                            text=hex_to_line(line.text), label=line.label, modified=True))
+                    except ValueError:
+                        bad.append(i + 1)
+                if bad:
+                    return f"Invalid hex on line(s): {', '.join(str(n) for n in bad[:5])}"
+                self.buffer._snapshot()
+                self.buffer.lines = new_lines
+                self.buffer.modified = True
+                self.vs.hex_mode = False
+                return "HEX OFF"
+            else:
+                return "Usage: HEX ON | HEX OFF"
 
         if cmd == "HELP":
             self.vs.help_mode = True

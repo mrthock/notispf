@@ -110,6 +110,8 @@ You can stage commands on multiple lines before pressing Enter — they all exec
 | `B` | Paste clipboard **before** this line |
 | `>n` | Indent right n columns (e.g. `>4` adds 4 spaces) |
 | `<n` | Indent left n columns (removes up to n leading spaces) |
+| `HEX` | Replace this line with its hex representation |
+| `HEXB` | Insert a hex copy of this line below it |
 
 ### Block Commands
 
@@ -158,6 +160,15 @@ Press **F6** to open the command line, then type a command and press Enter.
 |---------|--------|
 | `UNDO` | Undo last change |
 | `REDO` | Redo last undone change |
+
+### Hex Mode
+
+| Command | Action |
+|---------|--------|
+| `HEX ON` | Convert entire file to hex (e.g. `Hello` → `48 65 6C 6C 6F`) |
+| `HEX OFF` | Convert hex back to text |
+
+`[HEX]` appears in the status bar while hex mode is active. `HEX ON` and `HEX OFF` each count as a single undo step.
 
 ### Find and Change
 

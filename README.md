@@ -108,6 +108,8 @@ You can stage commands on multiple lines before pressing Enter — they all exec
 | `Mn` | Move n lines |
 | `A` | Paste clipboard **after** this line |
 | `B` | Paste clipboard **before** this line |
+| `O` | Overlay clipboard onto this line (merge; clipboard spaces don't overwrite) |
+| `On` | Overlay clipboard onto n lines |
 | `>n` | Indent right n columns (e.g. `>4` adds 4 spaces) |
 | `<n` | Indent left n columns (removes up to n leading spaces) |
 | `HEX` | Replace this line with its hex representation |
@@ -128,16 +130,30 @@ Type the command on the **first** line of the block, then again on the **last** 
 | `CC` | Copy block to clipboard |
 | `MM` | Move block (cut to clipboard) |
 | `RR` | Repeat block (insert a copy below) |
+| `OO` | Overlay clipboard onto block (merge clipboard text into block lines) |
 | `>>n` | Indent block right n columns |
 | `<<n` | Indent block left n columns |
 
-Use `A` or `B` on a third line to place the clipboard after copying or moving.
+Use `A`, `B`, or `O`/`OO` on a third line to place the clipboard after copying or moving.
 
 **Example — move lines 3–6 to after line 10:**
 1. Tab to line 3 prefix → type `MM`
 2. Arrow down to line 6 → type `MM`
 3. Arrow down to line 10 → type `A`
 4. Press Enter
+
+### Exclude / Show Commands
+
+| Command | Action |
+|---------|--------|
+| `X` | Exclude line from display (collapse into fold row) |
+| `Xn` | Exclude n lines |
+| `S` | Show (un-exclude) line or the entire fold group it belongs to |
+| `Sn` | Show n lines |
+| `XX` | Exclude block |
+| `SS` | Show block |
+
+Excluded lines are collapsed into a single fold row showing the count. Use `SHOW ALL` on the command line to reveal everything at once.
 
 ### Prefix Mode Controls
 
@@ -159,6 +175,12 @@ Press **F6** to open the command line, then type a command and press Enter.
 | `FILE` | Save and exit |
 | `CANCEL` or `QUIT` or `CAN` | Exit without saving |
 
+### Copy File
+
+| Command | Action |
+|---------|--------|
+| `COPY filename` | Save a copy of the current file to `filename` (current file path unchanged) |
+
 ### Undo / Redo
 
 | Command | Action |
@@ -174,6 +196,42 @@ Press **F6** to open the command line, then type a command and press Enter.
 | `HEX OFF` | Convert hex back to text |
 
 `[HEX]` appears in the status bar while hex mode is active. `HEX ON` and `HEX OFF` each count as a single undo step.
+
+### Exclude and Delete
+
+```
+EXCLUDE 'pattern'
+EXCLUDE 'pattern' ALL
+EXCLUDE 'pattern' n
+
+DELETE 'pattern'
+DELETE 'pattern' ALL
+DELETE 'pattern' n
+DELETE X ALL
+DELETE NX ALL
+```
+
+- `EXCLUDE 'pattern'` — exclude the next matching line from display
+- `EXCLUDE 'pattern' ALL` — exclude all matching lines
+- `EXCLUDE 'pattern' n` — exclude the next n matching lines
+- `DELETE 'pattern'` — delete the next matching line
+- `DELETE 'pattern' ALL` — delete all matching lines
+- `DELETE X ALL` — delete all currently excluded lines
+- `DELETE NX ALL` — delete all non-excluded lines
+
+### Show
+
+| Command | Action |
+|---------|--------|
+| `SHOW ALL` | Reveal all excluded lines |
+
+### Display
+
+| Command | Action |
+|---------|--------|
+| `COLS` | Toggle the column ruler on/off |
+| `CLEAR` | Clear the current search highlight |
+| `HELP` | Open the help screen |
 
 ### Find and Change
 

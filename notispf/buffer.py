@@ -29,8 +29,16 @@ class Buffer:
     #-------------------------------------------------------------------
 
     def load_file(self, filepath: str) -> None:
-        with open(filepath, "r", encoding="utf-8") as f:
-            self.lines = [Line(text=line.rstrip("\n")) for line in f]
+        for encoding in ("utf-8", "latin-1"):
+            try:
+                with open(filepath, "r", encoding=encoding) as f:
+                    self.lines = [Line(text=line.rstrip("\n")) for line in f]
+                break
+            except UnicodeDecodeError:
+                continue
+        else:
+            with open(filepath, "r", encoding="utf-8", errors="replace") as f:
+                self.lines = [Line(text=line.rstrip("\n")) for line in f]
         self.filepath = filepath
         self.modified = False
         self._undo_stack.clear()

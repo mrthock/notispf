@@ -56,36 +56,42 @@ notispf <file>
 
 ```
  notispf  filename.txt                    Line 1/42  Col 1
+===> _
 000001|This is the first line of your file
 000002|Second line here
 000003|Third line
       |~
       |~
-Type prefix command, Enter to execute, Esc to cancel
 ```
 
-- **Status bar** (top) — filename, modified flag `[+]`, current line/total, cursor column, `[HEX]` when hex mode is active
-- **Prefix column** (left, 6 chars) — shows line numbers; type commands here
+- **Status bar** (top row) — filename, modified flag `[+]`, current line/total, cursor column, `[HEX]` when hex mode is active
+- **Command bar** (second row) — always visible; type commands here after pressing F6 to focus it
+- **Prefix column** (left, 6 chars) — shows line numbers; type prefix commands here
 - **Text area** (right of `|`) — edit your file
-- **Message/command line** (bottom) — status messages and command input
+- **Message bar** (bottom row) — status messages and feedback
 
 ## Navigation
 
 | Key | Action |
 |-----|--------|
-| Arrow keys | Move cursor |
+| Arrow keys | Move cursor in text |
+| Up (from top visible line) | Move to command bar |
 | Page Up / Page Down | Scroll |
 | Home / Ctrl+A | Beginning of line |
 | End / Ctrl+E | End of line |
 
-## Switching Between Text and Prefix Area
+## Switching Between Areas
 
-| Key | Action |
-|-----|--------|
-| Tab | text(N) → prefix(N+1) |
-| Tab | prefix(N) → text(N) |
-| Shift+Tab | text(N) → prefix(N) |
-| Shift+Tab | prefix(N) → text(N-1) |
+| From | Key | To |
+|------|-----|----|
+| Text | Tab | Prefix column of next line (N+1) |
+| Text (top line) | Shift+Tab | Command bar |
+| Text (any other line) | Shift+Tab | Prefix column of previous line (N-1) |
+| Prefix | Tab | Text area of same line |
+| Prefix | Shift+Tab | Text area of previous line (N-1) |
+| Command bar | Tab | Prefix area of line 1 |
+| Command bar | Down arrow | Text area (cursor position preserved) |
+| Command bar | Escape | Text area (cursor position preserved, bar stays visible) |
 
 ## Prefix Commands
 
@@ -165,7 +171,7 @@ Excluded lines are collapsed into a single fold row showing the count. Use `SHOW
 
 ## Command Line
 
-Press **F6** to open the command line, then type a command and press Enter.
+The command bar is always visible just below the status bar. Press **F6** to focus it (the cursor moves to `===>`), type a command, and press Enter to execute. After the command runs the input clears, the result appears in the message bar, and the cursor stays at `===>` ready for another command. Press **Escape** or **Down arrow** to return to the text. Press **F6** again while focused to hide the bar entirely; press **F6** once more to bring it back.
 
 ### File Commands
 
@@ -230,7 +236,7 @@ DELETE NX ALL
 | Command | Action |
 |---------|--------|
 | `COLS` | Toggle the column ruler on/off |
-| `CLEAR` | Clear the current search highlight |
+| `CLEAR` / `RESET` / `RES` | Clear the current search highlight |
 | `HELP` | Open the help screen |
 
 ### Find and Change
@@ -244,7 +250,7 @@ CHANGE 'old' 'new' ALL .labelA .labelB
 
 Both single and double quotes are accepted as delimiters.
 
-Aliases: `F` for `FIND`, `C` for `CHANGE`.
+Aliases: `F` for `FIND`, `C` for `CHANGE`, `CAN` for `CANCEL`, `RESET`/`RES` for `CLEAR`.
 
 - `FIND` — locate next occurrence (case-insensitive by default)
 - `CHANGE` — replace next occurrence
@@ -263,7 +269,7 @@ Labels are used to define ranges for `CHANGE ... ALL .A .B`.
 | F1 | Help |
 | F3 | Save and exit |
 | F5 | Repeat last FIND (RFIND) |
-| F6 | Open command line |
+| F6 | Focus command bar (or hide it if already focused) |
 | F7 / Page Up | Scroll up |
 | F8 / Page Down | Scroll down |
 | F10 | Scroll left |

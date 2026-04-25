@@ -4,6 +4,9 @@ import curses
 from dataclasses import dataclass, field
 
 
+# Custom color IDs (above the 8 standard colors)
+_COLOR_DARK_OLIVE = 20  # #2d4a1e
+
 # Color pair IDs
 _CP_STATUS   = 1   # status bar
 _CP_PREFIX   = 2   # prefix column (line numbers)
@@ -30,6 +33,7 @@ class ViewState:
     message: str = ""
     command_input: str = ""
     command_mode: bool = False  # True when cursor is in command line
+    show_command: bool = True   # True when command bar row is visible
     prefix_mode: bool = False   # True when cursor is in prefix column
     prefix_input: str = ""      # what user has typed in prefix column so far
     show_cols: bool = False     # True when column ruler is visible
@@ -56,13 +60,19 @@ class Display:
         curses.start_color()
         curses.use_default_colors()
 
+        if curses.can_change_color():
+            curses.init_color(_COLOR_DARK_OLIVE, 176, 290, 118)
+            cmd_bg = _COLOR_DARK_OLIVE
+        else:
+            cmd_bg = curses.COLOR_GREEN
+
         curses.init_pair(_CP_STATUS,   curses.COLOR_BLACK,  curses.COLOR_CYAN)
         curses.init_pair(_CP_PREFIX,   curses.COLOR_CYAN,   -1)
         curses.init_pair(_CP_SEP,      curses.COLOR_CYAN,   -1)
         curses.init_pair(_CP_TEXT,     -1,                  -1)
         curses.init_pair(_CP_MODIFIED, curses.COLOR_YELLOW, -1)
         curses.init_pair(_CP_MSG,      curses.COLOR_BLACK,  curses.COLOR_YELLOW)
-        curses.init_pair(_CP_CMD,      curses.COLOR_BLACK,  curses.COLOR_WHITE)
+        curses.init_pair(_CP_CMD,      curses.COLOR_WHITE,  cmd_bg)
         curses.init_pair(_CP_CURSOR,   -1,                  curses.COLOR_BLUE)
         curses.init_pair(_CP_RULER,    curses.COLOR_BLACK,  curses.COLOR_WHITE)
         curses.init_pair(_CP_HIGHLIGHT, curses.COLOR_BLACK,  curses.COLOR_YELLOW)
@@ -80,6 +90,8 @@ class Display:
             self._render_help(vs, rows, cols)
             self._render_bottom(vs, rows, cols)
         else:
+            if vs.show_command:
+                self._render_command_bar(vs, cols)
             self._render_content(buffer, prefix_area, vs, rows, cols)
             self._render_bottom(vs, rows, cols)
             self._place_cursor(vs, rows)
@@ -142,9 +154,16 @@ class Display:
                 ruler.append('-')
         return ''.join(ruler)
 
+    def _render_command_bar(self, vs: ViewState, cols: int) -> None:
+        prompt = "===> "
+        content = (prompt + vs.command_input).ljust(cols)[:cols]
+        self._addstr_clipped(1, 0, content, curses.color_pair(_CP_CMD))
+
     def _render_content(self, buffer, prefix_area, vs: ViewState,
                         rows: int, cols: int) -> None:
-        content_rows = rows - 2
+        cmd_offset = 1 if vs.show_command else 0
+        content_rows = rows - 2 - cmd_offset
+        first_row = 1 + cmd_offset
         text_width = cols - TEXT_OFFSET
         ruler_offset = 1 if vs.show_cols else 0
         view = self.build_view(buffer, vs.top_line, content_rows - ruler_offset)
@@ -152,12 +171,12 @@ class Display:
         if vs.show_cols:
             ruler = self._build_ruler(vs.col_offset + text_width)
             ruler_slice = ruler[vs.col_offset:vs.col_offset + text_width]
-            self._addstr_clipped(1, 0, "COLS  ", curses.color_pair(_CP_RULER))
-            self._addstr_clipped(1, PREFIX_WIDTH, "|", curses.color_pair(_CP_RULER))
-            self._addstr_clipped(1, TEXT_OFFSET, ruler_slice, curses.color_pair(_CP_RULER))
+            self._addstr_clipped(first_row, 0, "COLS  ", curses.color_pair(_CP_RULER))
+            self._addstr_clipped(first_row, PREFIX_WIDTH, "|", curses.color_pair(_CP_RULER))
+            self._addstr_clipped(first_row, TEXT_OFFSET, ruler_slice, curses.color_pair(_CP_RULER))
 
         for screen_row in range(content_rows - ruler_offset):
-            row = screen_row + 1 + ruler_offset
+            row = screen_row + first_row + ruler_offset
 
             if screen_row >= len(view):
                 # Past end of file
@@ -272,7 +291,7 @@ class Display:
     _HELP_LINES = [
         "  notispf — Help                                          Press any key to exit",
         "",
-        "  COMMAND LINE  (press F6 to open)",
+        "  COMMAND LINE  (always shown; F6 to focus or hide)",
         "  " + "─" * 60,
         "  SAVE                   Save file",
         "  FILE                   Save and exit",
@@ -290,7 +309,7 @@ class Display:
         "  HEX ON                 Convert entire file to hex display",
         "  HEX OFF                Convert hex display back to text",
         "  COLS                   Toggle column ruler",
-        "  CLEAR                  Clear search/change highlighting",
+        "  CLEAR / RESET / RES    Clear search/change highlighting",
         "  HELP                   Show this screen",
         "",
         "  PREFIX COMMANDS  (Tab to reach prefix area)",
@@ -315,16 +334,17 @@ class Display:
         "  " + "─" * 60,
         "  F1          Help                  F3        Save and exit",
         "  F5          Repeat last FIND",
-        "  F6          Open command line     F12       Exit without saving",
+        "  F6          Focus/hide command bar F12       Exit without saving",
         "  Ctrl+Z      Undo                  Ctrl+Y    Redo",
         "  F7  / PgUp  Scroll up             F8/PgDn   Scroll down",
         "  F10         Scroll left           F11       Scroll right",
-        "  Tab         Move to prefix area",
-        "  Shift+Tab   Move to previous line",
+        "  Tab         Move down into prefix  Shift+Tab Move up into prefix",
+        "  Tab (cmd)   Go to prefix of line 1  Down (cmd) Return to text",
         "",
         "  NAVIGATION",
         "  " + "─" * 60,
         "  Arrow keys  Move cursor           Home/End  Start/end of line",
+        "  Up (top line)  Go to command bar  Shift+Tab (top) Go to command bar",
         "  Ctrl-A      Start of line         Ctrl-E    End of line",
         "",
     ]
@@ -350,16 +370,10 @@ class Display:
 
     def _render_bottom(self, vs: ViewState, rows: int, cols: int) -> None:
         row = rows - 1
-        if vs.command_mode:
-            prompt = "===> "
-            content = (prompt + vs.command_input)[:cols]
-            content = content.ljust(cols)[:cols]
-            self._addstr_clipped(row, 0, content, curses.color_pair(_CP_CMD))
-        else:
-            msg = vs.message[:cols].ljust(cols)[:cols]
-            attr = curses.color_pair(_CP_MSG) if vs.message \
-                else curses.color_pair(_CP_TEXT)
-            self._addstr_clipped(row, 0, msg, attr)
+        msg = vs.message[:cols].ljust(cols)[:cols]
+        attr = curses.color_pair(_CP_MSG) if vs.message \
+            else curses.color_pair(_CP_TEXT)
+        self._addstr_clipped(row, 0, msg, attr)
 
     # ------------------------------------------------------------------
     # Cursor placement
@@ -370,12 +384,13 @@ class Display:
             prompt_len = len("===> ")
             col = min(prompt_len + len(vs.command_input), vs.screen_cols - 1)
             try:
-                self.stdscr.move(rows - 1, col)
+                self.stdscr.move(1, col)
             except curses.error:
                 pass
         elif vs.prefix_mode:
+            cmd_offset = 1 if vs.show_command else 0
             ruler_offset = 1 if vs.show_cols else 0
-            screen_row = vs.cursor_line - vs.top_line + 1 + ruler_offset
+            screen_row = vs.cursor_line - vs.top_line + 1 + cmd_offset + ruler_offset
             screen_col = min(len(vs.prefix_input), PREFIX_WIDTH - 1)
             if 0 < screen_row < rows - 1:
                 try:
@@ -383,8 +398,9 @@ class Display:
                 except curses.error:
                     pass
         else:
+            cmd_offset = 1 if vs.show_command else 0
             ruler_offset = 1 if vs.show_cols else 0
-            screen_row = vs.cursor_line - vs.top_line + 1 + ruler_offset
+            screen_row = vs.cursor_line - vs.top_line + 1 + cmd_offset + ruler_offset
             screen_col = TEXT_OFFSET + vs.cursor_col - vs.col_offset
             if 0 < screen_row < rows - 1 and TEXT_OFFSET <= screen_col < vs.screen_cols:
                 try:

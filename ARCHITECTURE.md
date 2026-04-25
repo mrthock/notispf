@@ -113,23 +113,28 @@ message and both entries cleared.
 
 **`ViewState`** is a plain dataclass that holds all rendering state:
 cursor position, scroll offsets, mode flags (`command_mode`, `prefix_mode`,
-`help_mode`, `hex_mode`), the live prefix input buffer, the highlight pattern,
-etc. It is owned by `App` and passed into `Display.render()` on every frame.
+`help_mode`, `hex_mode`, `show_command`), the live prefix input buffer, the
+highlight pattern, etc. It is owned by `App` and passed into `Display.render()`
+on every frame. `show_command` (default `True`) controls whether the command bar
+row is visible; `command_mode` controls whether the cursor is focused there.
 
 The render pipeline per frame:
 
-1. `_render_status()` — top status bar (filename, modified flag, line/total, cursor column, `[HEX]` indicator)
-2. `_render_content()` or `_render_help()` — main content area
-3. `_render_bottom()` — bottom row (command input or message)
-4. `_place_cursor()` — moves the hardware cursor to the right position
+1. `_render_status()` — row 0: status bar (filename, modified flag, line/total, cursor column, `[HEX]` indicator)
+2. `_render_command_bar()` — row 1: always-visible command input (`===> ...`), shown when `show_command` is True
+3. `_render_content()` or `_render_help()` — main content area (starts at row 2 when command bar is visible)
+4. `_render_bottom()` — last row: status messages
+5. `_place_cursor()` — moves the hardware cursor to the right position (row 1 when `command_mode`, otherwise into content)
 
 **`build_view()`** converts the buffer into a flat list of view entries:
 - `('line', buf_idx)` — a normal visible line
 - `('fold', start, end, count)` — a run of excluded lines collapsed to one row
 
 **Color pairs** are defined as module-level constants (`_CP_STATUS`, `_CP_PREFIX`,
-etc.) and initialized once in `_init_curses()`. The 10 pairs use the 8 standard
-curses colors plus `-1` (terminal default).
+etc.) and initialized once in `_init_curses()`. If `curses.can_change_color()`
+returns True, a custom dark olive color (`_COLOR_DARK_OLIVE`, `#2d4a1e`) is
+defined via `curses.init_color()` and used for the command bar background;
+otherwise it falls back to `COLOR_GREEN`.
 
 Pattern highlighting is handled per-line in `_render_line_text()`, which splits
 each visible line into highlighted and non-highlighted spans and writes them with
@@ -159,7 +164,7 @@ clipboard is populated. Pass 2 runs paste commands (A/B/O/OO). This ensures that
 canonical names before dispatch:
 
 ```python
-{"F": "FIND", "C": "CHANGE", "CAN": "CANCEL"}
+{"F": "FIND", "C": "CHANGE", "CAN": "CANCEL", "RESET": "CLEAR", "RES": "CLEAR"}
 ```
 
 ---

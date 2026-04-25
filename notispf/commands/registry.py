@@ -22,19 +22,12 @@ class CommandSpec:
 class CommandRegistry:
     def __init__(self):
         self._line_cmds: dict[str, CommandSpec] = {}
-        self._editor_cmds: dict[str, CommandSpec] = {}
 
     def register_line_cmd(self, spec: CommandSpec) -> None:
         self._line_cmds[spec.name.upper()] = spec
 
-    def register_editor_cmd(self, spec: CommandSpec) -> None:
-        self._editor_cmds[spec.name.upper()] = spec
-
     def get_line_cmd(self, name: str) -> CommandSpec | None:
         return self._line_cmds.get(name.upper())
-
-    def get_editor_cmd(self, name: str) -> CommandSpec | None:
-        return self._editor_cmds.get(name.upper())
 
     def normalize(self, raw: str) -> tuple[str, int]:
         """Parse a prefix entry into (command_name, numeric_arg).

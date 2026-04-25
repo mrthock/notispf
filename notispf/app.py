@@ -2,8 +2,9 @@
 from __future__ import annotations
 import curses
 import os
+import shlex
 
-from notispf.buffer import Buffer
+from notispf.buffer import Buffer, Line
 from notispf.commands.registry import CommandRegistry
 from notispf.commands import line_cmds, block_cmds, exclude_cmds
 from notispf.commands.line_cmds import line_to_hex, hex_to_line
@@ -11,6 +12,12 @@ from notispf.buffer import Line
 from notispf.display import Display, ViewState, TEXT_OFFSET
 from notispf.find_change import FindChangeEngine
 from notispf.prefix import PrefixArea
+
+
+_CMD_ALIASES: dict[str, str] = {
+    "F": "FIND", "C": "CHANGE", "CAN": "CANCEL",
+    "RESET": "CLEAR", "RES": "CLEAR",
+}
 
 
 def _build_registry() -> CommandRegistry:
@@ -41,7 +48,6 @@ class App:
     def _new_buffer(self, filepath: str) -> Buffer:
         buf = Buffer()
         buf.filepath = filepath
-        buf.lines = []
         return buf
 
     def run(self) -> None:
@@ -98,12 +104,15 @@ class App:
         if key not in _text_edit_keys and not (32 <= key <= 126):
             self.buffer.end_edit_group()
 
-        rows, _ = self.display.stdscr.getmaxyx()
-        content_rows = rows - 2 - (1 if vs.show_cols else 0)
+        content_rows = self._content_rows()
 
         # Navigation
         if key == curses.KEY_UP:
-            self._move_cursor(-1)
+            if vs.show_command and vs.cursor_line <= vs.top_line:
+                vs.command_mode = True
+                vs.message = ""
+            else:
+                self._move_cursor(-1)
         elif key == curses.KEY_DOWN:
             self._move_cursor(1)
         elif key in (curses.KEY_PPAGE, curses.KEY_F7):   # Page Up
@@ -131,10 +140,11 @@ class App:
                     vs.cursor_col + 1)
             self._scroll_col_to_cursor()
 
-        # Enter command mode
+        # F6: focus command bar (show it first if hidden)
         elif key == curses.KEY_F6:
+            if not vs.show_command:
+                vs.show_command = True
             vs.command_mode = True
-            vs.command_input = ""
             vs.message = ""
 
         # F1 = HELP
@@ -169,32 +179,20 @@ class App:
                     vs.highlight_pattern = ""
                     vs.message = f"Not found: {pattern!r}"
 
-        # Tab: prefix(N) -> text(N),  text(N) -> prefix(N+1)
+        # Tab: advance to next line and enter its prefix area
         elif key == ord('\t'):
-            if vs.prefix_mode:
-                # Leave prefix area, stay on same line, go to text
-                self._stage_current_prefix()
-                vs.prefix_mode = False
-                vs.prefix_input = ""
-                vs.message = ""
-            else:
-                # Advance to next line and enter its prefix area
-                self._move_cursor(1, skip_excluded=False)
-                vs.prefix_mode = True
-                vs.prefix_input = self.prefix_area._pending.get(vs.cursor_line, "")
-                vs.message = "Type prefix command, Enter to execute, Esc to cancel"
+            self._move_cursor(1, skip_excluded=False)
+            vs.prefix_mode = True
+            vs.prefix_input = self.prefix_area._pending.get(vs.cursor_line, "")
+            vs.message = "Type prefix command, Enter to execute, Esc to cancel"
 
-        # Shift+Tab: text(N) -> prefix(N),  prefix(N) -> text(N-1)
+        # Shift+Tab: go to command bar if at top line, otherwise move up into prefix
         elif key == curses.KEY_BTAB:
-            if vs.prefix_mode:
-                # Leave prefix area, go to previous line's text area
-                self._stage_current_prefix()
-                vs.prefix_mode = False
-                vs.prefix_input = ""
+            if vs.show_command and vs.cursor_line <= vs.top_line:
+                vs.command_mode = True
                 vs.message = ""
-                self._move_cursor(-1, skip_excluded=False)
             else:
-                # Enter prefix area of current line
+                self._move_cursor(-1, skip_excluded=False)
                 vs.prefix_mode = True
                 vs.prefix_input = self.prefix_area._pending.get(vs.cursor_line, "")
                 vs.message = "Type prefix command, Enter to execute, Esc to cancel"
@@ -235,13 +233,28 @@ class App:
         vs = self.vs
         if key in (curses.KEY_ENTER, ord('\n'), ord('\r')):
             result_msg = self._execute_command(vs.command_input.strip())
-            vs.command_mode = False
             vs.command_input = ""
             vs.message = result_msg
-        elif key == 27:  # Escape
+        elif key == 27:  # Escape — unfocus but keep bar visible
             vs.command_mode = False
             vs.command_input = ""
             vs.message = ""
+        elif key == curses.KEY_F6:  # F6 again — hide bar
+            vs.show_command = False
+            vs.command_mode = False
+            vs.command_input = ""
+            vs.message = ""
+        elif key == curses.KEY_DOWN:  # down arrow — return to text at current position
+            vs.command_mode = False
+            vs.message = ""
+        elif key == ord('\t'):  # Tab — go to prefix area of line 1
+            vs.command_mode = False
+            vs.cursor_line = 0
+            vs.cursor_col = 0
+            vs.prefix_mode = True
+            vs.prefix_input = self.prefix_area._pending.get(0, "")
+            self._scroll_to_cursor()
+            vs.message = "Type prefix command, Enter to execute, Esc to cancel"
         elif key == curses.KEY_BACKSPACE or key == 127:
             vs.command_input = vs.command_input[:-1]
         elif 32 <= key <= 126:
@@ -255,16 +268,15 @@ class App:
     def _execute_command(self, raw: str) -> str:
         if not raw:
             return ""
-        import shlex
         try:
-            tokens = shlex.split(raw.upper())
+            tokens = shlex.split(raw)
         except ValueError:
             return f"Parse error: {raw}"
+        if not tokens:
+            return ""
 
-        cmd = tokens[0] if tokens else ""
-
-        _aliases = {"F": "FIND", "C": "CHANGE", "CAN": "CANCEL"}
-        cmd = _aliases.get(cmd, cmd)
+        cmd = _CMD_ALIASES.get(tokens[0].upper(), tokens[0].upper())
+        upper_tokens = [t.upper() for t in tokens]
 
         if cmd == "UNDO":
             return "Undone" if self.buffer.undo() else "Nothing to undo"
@@ -273,7 +285,7 @@ class App:
             return "Redone" if self.buffer.redo() else "Nothing to redo"
 
         if cmd == "HEX":
-            sub = tokens[1] if len(tokens) > 1 else ""
+            sub = upper_tokens[1] if len(upper_tokens) > 1 else ""
             if sub == "ON":
                 if self.vs.hex_mode:
                     return "Already in HEX mode"
@@ -322,18 +334,14 @@ class App:
             self._quit_flag = True
             return ""
 
-        if cmd == "SHOW" and "ALL" in tokens:
+        if cmd == "SHOW" and "ALL" in upper_tokens:
             self.buffer.show_all()
             return "All lines shown"
 
         if cmd == "COPY":
-            try:
-                orig_tokens = shlex.split(raw)
-            except ValueError:
-                return f"Parse error: {raw}"
-            if len(orig_tokens) < 2:
+            if len(tokens) < 2:
                 return "Usage: COPY filename"
-            dest = orig_tokens[1]
+            dest = tokens[1]
             try:
                 saved_filepath = self.buffer.filepath
                 saved_modified = self.buffer.modified
@@ -354,16 +362,12 @@ class App:
                 return f"Save error: {e}"
 
         if cmd == "EXCLUDE":
-            try:
-                orig_tokens = shlex.split(raw)
-            except ValueError:
-                return f"Parse error: {raw}"
-            if len(orig_tokens) < 2:
+            if len(tokens) < 2:
                 return "Usage: EXCLUDE 'pattern' [ALL | n]"
-            pattern = orig_tokens[1]
-            rest = orig_tokens[2:]
+            pattern = tokens[1]
+            rest = upper_tokens[2:]
             if rest:
-                if rest[0].upper() == "ALL":
+                if rest[0] == "ALL":
                     limit = None
                 else:
                     try:
@@ -376,14 +380,10 @@ class App:
             return f"{n} line(s) excluded" if n else f"Not found: {pattern!r}"
 
         if cmd == "DELETE":
-            try:
-                orig_tokens = shlex.split(raw)
-            except ValueError:
-                return f"Parse error: {raw}"
-            if len(orig_tokens) < 2:
+            if len(tokens) < 2:
                 return "Usage: DELETE 'pattern' [ALL | n] | DELETE X ALL | DELETE NX ALL"
 
-            qualifier = orig_tokens[1].upper()
+            qualifier = upper_tokens[1]
 
             # DELETE X ALL — delete all excluded lines
             if qualifier == "X":
@@ -396,10 +396,10 @@ class App:
                 return f"{n} non-excluded line(s) deleted" if n else "No non-excluded lines"
 
             # DELETE "pattern" [ALL | n]
-            pattern = orig_tokens[1]
-            rest = orig_tokens[2:]
+            pattern = tokens[1]
+            rest = upper_tokens[2:]
             if rest:
-                if rest[0].upper() == "ALL":
+                if rest[0] == "ALL":
                     limit = None
                 else:
                     try:
@@ -414,16 +414,10 @@ class App:
         if cmd == "FIND":
             if len(tokens) < 2:
                 return "Usage: FIND <text> [column]"
-            # Re-parse preserving original case
-            try:
-                orig_tokens = shlex.split(raw)
-            except ValueError:
-                return f"Parse error: {raw}"
-            pattern = orig_tokens[1] if len(orig_tokens) > 1 else ""
-            # Optional column number — last token if it's a positive integer
+            pattern = tokens[1]
             find_col = None
-            if len(orig_tokens) > 2:
-                last = orig_tokens[-1]
+            if len(tokens) > 2:
+                last = tokens[-1]
                 if last.isdigit() and int(last) >= 1:
                     find_col = int(last)
             pos = self.find_engine.find_next(pattern, col=find_col)
@@ -438,14 +432,10 @@ class App:
             return f"Not found: {pattern!r}{col_msg}"
 
         if cmd == "CHANGE":
-            try:
-                orig_tokens = shlex.split(raw)
-            except ValueError:
-                return f"Parse error: {raw}"
-            if len(orig_tokens) < 3:
+            if len(tokens) < 3:
                 return "Usage: CHANGE 'old' 'new' [ALL] [.lbl1 .lbl2] [column]"
-            old, new = orig_tokens[1], orig_tokens[2]
-            rest = [t.upper() for t in orig_tokens[3:]]
+            old, new = tokens[1], tokens[2]
+            rest = upper_tokens[3:]
             # Extract optional column number — any token that is a positive integer
             change_col = None
             rest_no_col = []
@@ -598,6 +588,12 @@ class App:
     # Text editing helpers (basic, Phase 6 will flesh these out)
     # ------------------------------------------------------------------
 
+    def _content_rows(self) -> int:
+        """Visible text rows, accounting for the command bar and column ruler."""
+        rows, _ = self.display.stdscr.getmaxyx()
+        vs = self.vs
+        return rows - 2 - (1 if vs.show_cols else 0) - (1 if vs.show_command else 0)
+
     def _scroll_col_to_cursor(self) -> None:
         """Adjust col_offset so cursor_col is always visible in the text area."""
         vs = self.vs
@@ -611,7 +607,7 @@ class App:
         self.buffer.begin_edit_group()
         vs = self.vs
         if not self.buffer.lines:
-            self.buffer.lines.append(__import__('notispf.buffer', fromlist=['Line']).Line(text=""))
+            self.buffer.lines.append(Line(text=""))
         line = self.buffer.lines[vs.cursor_line]
         new_text = line.text[:vs.cursor_col] + ch + line.text[vs.cursor_col:]
         self.buffer.replace_line(vs.cursor_line, new_text)
@@ -661,7 +657,7 @@ class App:
         self.buffer.begin_edit_group()
         vs = self.vs
         if not self.buffer.lines:
-            self.buffer.lines.append(__import__('notispf.buffer', fromlist=['Line']).Line(text=""))
+            self.buffer.lines.append(Line(text=""))
             return
         line = self.buffer.lines[vs.cursor_line]
         before = line.text[:vs.cursor_col]
@@ -691,8 +687,7 @@ class App:
 
     def _scroll_to_cursor(self) -> None:
         vs = self.vs
-        rows, _ = self.display.stdscr.getmaxyx()
-        content_rows = rows - 2 - (1 if vs.show_cols else 0)
+        content_rows = self._content_rows() - (1 if vs.show_command else 0)
         if vs.cursor_line < vs.top_line:
             vs.top_line = vs.cursor_line
         elif vs.cursor_line >= vs.top_line + content_rows:

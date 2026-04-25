@@ -61,28 +61,28 @@ class PrefixArea:
             self._open_block = entry
             return None  # Waiting for partner
 
-        open = self._open_block
+        first_entry = self._open_block
 
-        if open.cmd_name != entry.cmd_name:
+        if first_entry.cmd_name != entry.cmd_name:
             # Mismatched block commands
             self._open_block = None
-            self._pending.pop(open.line_idx, None)
+            self._pending.pop(first_entry.line_idx, None)
             self._pending.pop(entry.line_idx, None)
             return EditorResult(
                 success=False,
-                message=f"Mismatched block commands: {open.cmd_name} and {entry.cmd_name}",
-                cleared_prefixes=[open.line_idx, entry.line_idx],
+                message=f"Mismatched block commands: {first_entry.cmd_name} and {entry.cmd_name}",
+                cleared_prefixes=[first_entry.line_idx, entry.line_idx],
             )
 
-        start_idx = min(open.line_idx, entry.line_idx)
-        end_idx = max(open.line_idx, entry.line_idx)
+        start_idx = min(first_entry.line_idx, entry.line_idx)
+        end_idx = max(first_entry.line_idx, entry.line_idx)
         self._open_block = None
-        self._pending.pop(open.line_idx, None)
+        self._pending.pop(first_entry.line_idx, None)
         self._pending.pop(entry.line_idx, None)
 
         spec = self.registry.get_line_cmd(entry.cmd_name)
-        result = spec.handler(self.buffer, start_idx, end_idx, open.numeric_arg)
-        result.cleared_prefixes.extend([open.line_idx, entry.line_idx])
+        result = spec.handler(self.buffer, start_idx, end_idx, first_entry.numeric_arg)
+        result.cleared_prefixes.extend([first_entry.line_idx, entry.line_idx])
         return result
 
     def cancel_open_block(self) -> None:

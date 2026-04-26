@@ -16,9 +16,9 @@ AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 DefaultDirName={autopf}\{#MyAppName}
 DisableProgramGroupPage=yes
-OutputDir=Output
+OutputDir={#SourcePath}\..\Output
 OutputBaseFilename=notispf-qt-setup
-SetupIconFile=assets\icon.ico
+SetupIconFile={#SourcePath}\..\assets\icon.ico
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -30,7 +30,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "dist\notispf-qt.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourcePath}\..\dist\notispf-qt.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

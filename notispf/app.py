@@ -594,8 +594,10 @@ class App:
         if self.buffer.modified and self.buffer.filepath:
             try:
                 self.buffer.save_file()
-            except Exception:
-                pass
+            except Exception as e:
+                self.vs.message = f"Save failed: {e}"
+                self._render()
+                self._quit_flag = False  # prevent quit so user sees the error
 
     # ------------------------------------------------------------------
     # Text editing helpers (basic, Phase 6 will flesh these out)

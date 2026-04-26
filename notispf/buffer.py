@@ -29,16 +29,19 @@ class Buffer:
     #-------------------------------------------------------------------
 
     def load_file(self, filepath: str) -> None:
-        for encoding in ("utf-8", "latin-1"):
-            try:
-                with open(filepath, "r", encoding=encoding) as f:
+        try:
+            for encoding in ("utf-8", "latin-1"):
+                try:
+                    with open(filepath, "r", encoding=encoding) as f:
+                        self.lines = [Line(text=line.rstrip("\n")) for line in f]
+                    break
+                except UnicodeDecodeError:
+                    continue
+            else:
+                with open(filepath, "r", encoding="utf-8", errors="replace") as f:
                     self.lines = [Line(text=line.rstrip("\n")) for line in f]
-                break
-            except UnicodeDecodeError:
-                continue
-        else:
-            with open(filepath, "r", encoding="utf-8", errors="replace") as f:
-                self.lines = [Line(text=line.rstrip("\n")) for line in f]
+        except (FileNotFoundError, PermissionError, OSError) as e:
+            raise OSError(f"Cannot open '{filepath}': {e}") from e
         self.filepath = filepath
         self.modified = False
         self._undo_stack.clear()
@@ -49,9 +52,12 @@ class Buffer:
         target = filepath or self.filepath
         if target is None:
             raise ValueError("No filepath specified")
-        with open(target, "w", encoding="utf-8") as f:
-            for line in self.lines:
-                f.write(line.text + "\n")
+        try:
+            with open(target, "w", encoding="utf-8") as f:
+                for line in self.lines:
+                    f.write(line.text + "\n")
+        except (PermissionError, OSError) as e:
+            raise OSError(f"Cannot save '{target}': {e}") from e
         self.filepath = target
         self.modified = False
 

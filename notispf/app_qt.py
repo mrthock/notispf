@@ -60,6 +60,19 @@ class AppQt(App):
     def _content_rows(self) -> int:
         return self.window.editor.content_rows()
 
+    def _save_and_quit(self) -> None:
+        if self.buffer.modified and self.buffer.filepath:
+            try:
+                self.buffer.save_file()
+            except Exception as e:
+                from PyQt6.QtWidgets import QMessageBox
+                QMessageBox.critical(
+                    self.window,
+                    "Save Failed",
+                    f"Could not save '{self.buffer.filepath}':\n{e}\n\nYour file has NOT been saved.",
+                )
+                self._quit_flag = False  # prevent quit so user can retry or cancel
+
     # ------------------------------------------------------------------
     # Qt key handling (called from EditorViewport.keyPressEvent)
     # ------------------------------------------------------------------

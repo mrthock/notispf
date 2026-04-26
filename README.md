@@ -1,41 +1,48 @@
 # notispf
 
-A terminal text editor for Linux and macOS inspired by the ISPF editor from z/OS mainframes.
-Runs in your terminal like vim or nano, with the prefix command area that ISPF users know and love.
+A text editor inspired by the ISPF editor from z/OS mainframes, available as both a terminal app and a desktop GUI.
+Brings the prefix command area that ISPF users know and love to Linux, macOS, and Windows.
 
 ## Installation
 
-### Download a binary (no Python required)
+### Download (no Python required)
 
-Go to the [Releases page](https://github.com/mrthock/notispf/releases) and download the binary for your platform:
+Go to the [Releases page](https://github.com/mrthock/notispf/releases) and download for your platform:
 
-| Platform | File |
-|----------|------|
-| Linux    | `notispf-linux` |
-| macOS    | `notispf-macos` |
-| Windows  | `notispf-windows.exe` |
+| Platform | GUI (recommended) | Terminal CLI |
+|----------|-------------------|--------------|
+| Linux    | `notispf-qt-x86_64.AppImage` | `notispf-linux` |
+| macOS    | `notispf-qt.dmg` | `notispf-macos` |
+| Windows  | `notispf-qt-setup.exe` | `notispf-windows.exe` |
 
-**Linux / macOS:**
+**Linux AppImage:**
+```bash
+chmod +x notispf-qt-x86_64.AppImage
+./notispf-qt-x86_64.AppImage myfile.txt
+```
+
+**macOS DMG:** Open the `.dmg` and drag `notispf-qt` to your Applications folder.
+
+> **macOS note:** Without code signing, Gatekeeper will block the app on first launch.
+> Right-click the app → **Open** → **Open** to bypass the warning once.
+> For the CLI binary: `xattr -d com.apple.quarantine ./notispf-macos`
+
+**Windows installer:** Run `notispf-qt-setup.exe`. Creates a Start Menu entry and an optional desktop shortcut.
+
+> **Windows note:** SmartScreen may warn about an unknown publisher. Click **More info** → **Run anyway**.
+
+**Linux / macOS CLI:**
 ```bash
 chmod +x notispf-linux   # or notispf-macos
 ./notispf-linux myfile.txt
+mv notispf-linux ~/.local/bin/notispf   # optionally add to PATH
 ```
-
-Optionally move it somewhere on your PATH:
-```bash
-mv notispf-linux ~/.local/bin/notispf
-```
-
-**macOS note:** macOS will warn that the binary is from an unidentified developer. To clear the warning:
-```bash
-xattr -d com.apple.quarantine ./notispf-macos
-```
-Then run it normally.
 
 ### Via pip
 
 ```bash
-pip install notispf
+pip install notispf           # terminal version
+pip install notispf[qt]       # terminal + GUI (requires PyQt6)
 ```
 
 ### From source
@@ -43,11 +50,19 @@ pip install notispf
 ```bash
 git clone https://github.com/mrthock/notispf
 cd notispf
-pip install -e .
+pip install -e .          # terminal version
+pip install -e ".[qt]"    # terminal + GUI
 ```
 
 ## Usage
 
+**GUI (PyQt6):**
+```bash
+notispf-qt <file>
+notispf-qt           # opens a file picker dialog
+```
+
+**Terminal:**
 ```bash
 notispf <file>
 ```
@@ -77,16 +92,19 @@ notispf <file>
 | Arrow keys | Move cursor in text |
 | Up (from top visible line) | Move to command bar |
 | Page Up / Page Down | Scroll |
-| Home / Ctrl+A | Beginning of line |
+| Home | Focus command bar |
+| Ctrl+A | Beginning of line |
 | End / Ctrl+E | End of line |
 
 ## Switching Between Areas
 
 | From | Key | To |
 |------|-----|----|
+| Text | Home | Command bar |
 | Text | Tab | Prefix column of next line (N+1) |
 | Text (top line) | Shift+Tab | Command bar |
 | Text (any other line) | Shift+Tab | Prefix column of previous line (N-1) |
+| Prefix | Home | Command bar |
 | Prefix | Tab | Text area of same line |
 | Prefix | Shift+Tab | Text area of previous line (N-1) |
 | Command bar | Tab | Prefix area of line 1 |

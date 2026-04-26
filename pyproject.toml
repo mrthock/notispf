@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "notispf"
-version = "1.1.0"
+version = "1.2.0"
 description = "A terminal text editor inspired by the ISPF editor from z/OS"
 readme = "README.md"
 license = "MIT"
@@ -26,6 +26,9 @@ classifiers = [
     "Topic :: Text Editors",
 ]
 
+[project.optional-dependencies]
+qt = ["PyQt6>=6.5"]
+
 [project.urls]
 Homepage = "https://github.com/mrthock/notispf"
 Repository = "https://github.com/mrthock/notispf"
@@ -33,6 +36,7 @@ Repository = "https://github.com/mrthock/notispf"
 
 [project.scripts]
 notispf = "notispf.__main__:main"
+notispf-qt = "notispf.__main__:main_qt"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

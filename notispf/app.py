@@ -123,7 +123,12 @@ class App:
             vs.col_offset = max(0, vs.col_offset - (vs.screen_cols - TEXT_OFFSET))
         elif key == curses.KEY_F11:         # Scroll right
             vs.col_offset += vs.screen_cols - TEXT_OFFSET
-        elif key == curses.KEY_HOME or key == ord('\x01'):  # Home / Ctrl-A
+        elif key == curses.KEY_HOME:                # Home — focus command bar
+            if not vs.show_command:
+                vs.show_command = True
+            vs.command_mode = True
+            vs.message = ""
+        elif key == ord('\x01'):                    # Ctrl-A — start of line
             vs.cursor_col = 0
             self._scroll_col_to_cursor()
         elif key == curses.KEY_END or key == ord('\x05'):   # End / Ctrl-E
@@ -516,6 +521,14 @@ class App:
             vs.prefix_input = ""
             vs.message = ""
             self._move_cursor(-1, skip_excluded=False)
+
+        elif key == curses.KEY_HOME:
+            vs.prefix_mode = False
+            vs.prefix_input = ""
+            vs.message = ""
+            if not vs.show_command:
+                vs.show_command = True
+            vs.command_mode = True
 
         elif key == curses.KEY_BACKSPACE or key == 127:
             vs.prefix_input = vs.prefix_input[:-1]

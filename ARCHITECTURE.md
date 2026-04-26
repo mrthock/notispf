@@ -7,10 +7,13 @@ This document describes the internal structure for contributors and porters.
 
 ```
 notispf/
-├── __main__.py          Entry point (parses args, calls App.run())
-├── app.py               Top-level controller — owns all state, runs the event loop
+├── __main__.py          Entry points: main() for curses, main_qt() for GUI
+├── _qt_main.py          Thin PyInstaller entry point for the Qt build
+├── app.py               Top-level controller — owns all state, runs the curses event loop
+├── app_qt.py            AppQt(App) subclass — replaces I/O layer with PyQt6
 ├── buffer.py            Pure data layer — lines, undo/redo, clipboard, file I/O
 ├── display.py           Curses rendering engine — the only file that touches curses
+├── display_qt.py        PyQt6 rendering layer — EditorViewport, CommandInput, NotispfWindow
 ├── prefix.py            Prefix column state machine
 ├── find_change.py       FIND / CHANGE / EXCLUDE / DELETE engine
 └── commands/
@@ -142,6 +145,37 @@ different attributes.
 
 ---
 
+### `display_qt.py` and `app_qt.py` — PyQt6 Layer
+
+The Qt frontend follows the same architecture as the curses frontend: `AppQt` subclasses
+`App` and overrides only the I/O methods; all business logic (prefix execution, command
+parsing, find/change, undo/redo) is inherited unchanged.
+
+**`display_qt.py`** contains three widgets:
+
+- **`EditorViewport(QAbstractScrollArea)`** — custom `paintEvent` that draws the prefix
+  column, text area, column ruler, and help screen using `QPainter`. Handles mouse clicks
+  to position the cursor and enter prefix mode. Cursor is rendered as a blinking underline
+  bar via a `QTimer`.
+- **`CommandInput(QLineEdit)`** — the `===>` command bar. Overrides `event()` to intercept
+  Tab/Backtab before Qt's focus-traversal machinery steals them.
+- **`NotispfWindow(QMainWindow)`** — top-level window. Hosts the status label, command bar,
+  editor viewport, and message bar. An event filter on `CommandInput` handles F3, F5, F6,
+  Escape, and Down from the command bar.
+
+**`app_qt.py`** (`AppQt`) overrides:
+
+- `run()` — creates the `QApplication` and `NotispfWindow`, calls `qt_app.exec()`
+- `_render()` — calls `window.refresh()` instead of `Display.render()`
+- `_content_rows()` — delegates to `EditorViewport.content_rows()`
+- `_handle_key_qt()`, `_handle_help_key_qt()`, `_handle_prefix_key_qt()` — Qt equivalents
+  of the curses key handlers, using `Qt.Key` constants instead of `curses.KEY_*`
+
+Tab and Backtab require `event()` overrides in both `CommandInput` and `EditorViewport`
+because Qt's focus traversal consumes them before `keyPressEvent` sees them.
+
+---
+
 ### `app.py` — Controller
 
 `App` owns all state and runs the curses event loop via `curses.wrapper`.
@@ -241,13 +275,16 @@ Add a new `if cmd == "MYCOMMAND":` block in `App._execute_command()` in
 
 ## Platform Notes
 
-notispf runs on any platform with Python 3.11+ and curses:
-
-- **Linux / macOS** — works natively
-- **Windows** — the PyInstaller binary bundles `windows-curses`
+- **Linux** — curses works natively; Qt version distributed as an AppImage
+- **macOS** — curses works natively; Qt version distributed as a `.dmg` containing a `.app` bundle
+- **Windows** — the curses binary bundles `windows-curses`; Qt version distributed via an Inno Setup installer
 - **z/OS USS** — install via `zopen` (see `github.com/mrthock/notispfport`).
   EBCDIC encoding is not handled by notispf — mount MVS datasets into the USS
   filesystem via DSFS before editing.
 
-The `display.py` layer is deliberately isolated so that a future GUI front-end
-would only need to replace that one file.
+Distribution binaries are built by GitHub Actions on every `v*` tag using PyInstaller.
+The Qt builds use `--collect-all PyQt6` to bundle all Qt platform plugins.
+Icons are generated from `assets/icon.svg` by `scripts/make_icons.py` (requires Pillow).
+
+The `display.py` / `display_qt.py` split is deliberate: all rendering is isolated in those
+two files so that porting to a new UI toolkit only requires replacing the display layer.

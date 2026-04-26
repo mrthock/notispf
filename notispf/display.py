@@ -15,7 +15,6 @@ _CP_TEXT     = 4   # normal text
 _CP_MODIFIED = 5   # modified-line indicator in prefix
 _CP_MSG      = 6   # message line
 _CP_CMD      = 7   # command input line
-_CP_CURSOR   = 8   # current line highlight
 _CP_RULER    = 9   # column ruler
 _CP_HIGHLIGHT = 10  # found pattern highlight
 
@@ -73,7 +72,6 @@ class Display:
         curses.init_pair(_CP_MODIFIED, curses.COLOR_YELLOW, -1)
         curses.init_pair(_CP_MSG,      curses.COLOR_BLACK,  curses.COLOR_YELLOW)
         curses.init_pair(_CP_CMD,      curses.COLOR_WHITE,  cmd_bg)
-        curses.init_pair(_CP_CURSOR,   -1,                  curses.COLOR_BLUE)
         curses.init_pair(_CP_RULER,    curses.COLOR_BLACK,  curses.COLOR_WHITE)
         curses.init_pair(_CP_HIGHLIGHT, curses.COLOR_BLACK,  curses.COLOR_YELLOW)
 
@@ -206,7 +204,6 @@ class Display:
 
             # Normal line
             _, buf_idx = entry
-            is_cursor_line = (buf_idx == vs.cursor_line)
             prefix_content = self._get_prefix_display(buf_idx, buf_idx + 1,
                                                        prefix_area, vs)
             prefix_attr = curses.color_pair(_CP_MODIFIED) \
@@ -218,8 +215,7 @@ class Display:
                                  curses.color_pair(_CP_SEP))
 
             text = buffer.lines[buf_idx].text
-            base_attr = curses.color_pair(_CP_CURSOR) if is_cursor_line \
-                else curses.color_pair(_CP_TEXT)
+            base_attr = curses.color_pair(_CP_TEXT)
             self._render_line_text(row, text, vs.col_offset, text_width,
                                    base_attr, vs.highlight_pattern)
 
@@ -343,9 +339,10 @@ class Display:
         "",
         "  NAVIGATION",
         "  " + "─" * 60,
-        "  Arrow keys  Move cursor           Home/End  Start/end of line",
+        "  Arrow keys  Move cursor           End       End of line",
+        "  Home        Focus command bar     Ctrl-A    Start of line",
         "  Up (top line)  Go to command bar  Shift+Tab (top) Go to command bar",
-        "  Ctrl-A      Start of line         Ctrl-E    End of line",
+        "  Ctrl-E      End of line",
         "",
     ]
 

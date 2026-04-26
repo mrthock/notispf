@@ -6,19 +6,10 @@ on:
       - "v*"
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            artifact: notispf-linux
-          - os: macos-latest
-            artifact: notispf-macos
-          - os: windows-latest
-            artifact: notispf-windows.exe
 
-    runs-on: ${{ matrix.os }}
-
+  # ── Linux: AppImage + curses binary ────────────────────────────────────────
+  build-linux:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -26,27 +17,137 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install PyInstaller
-        run: pip install pyinstaller
+      - name: Install dependencies
+        run: pip install ".[qt]" pyinstaller
 
-      - name: Build binary
-        run: pyinstaller --onefile --name notispf notispf/__main__.py
+      - name: Build Qt binary (onedir — required for AppImage)
+        run: |
+          pyinstaller --onedir --name notispf-qt \
+            --collect-all PyQt6 \
+            notispf/_qt_main.py
 
-      - name: Rename binary (Linux/macOS)
-        if: runner.os != 'Windows'
-        run: mv dist/notispf dist/${{ matrix.artifact }}
+      - name: Build curses binary
+        run: pyinstaller --onefile --name notispf-linux notispf/__main__.py
 
-      - name: Rename binary (Windows)
-        if: runner.os == 'Windows'
-        run: mv dist/notispf.exe dist/${{ matrix.artifact }}
+      - name: Assemble AppDir
+        run: |
+          mkdir -p AppDir/usr/bin
+          cp -r dist/notispf-qt/* AppDir/usr/bin/
+          cp assets/icon.png AppDir/notispf-qt.png
+          cp packaging/notispf-qt.desktop AppDir/notispf-qt.desktop
+          printf '#!/bin/bash\nHERE="$(dirname "$(readlink -f "${0}")")"\nexec "$HERE/usr/bin/notispf-qt" "$@"\n' \
+            > AppDir/AppRun
+          chmod +x AppDir/AppRun
+
+      - name: Build AppImage
+        run: |
+          wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" \
+               -O appimagetool
+          chmod +x appimagetool
+          ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 ./appimagetool AppDir notispf-qt-x86_64.AppImage
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact }}
-          path: dist/${{ matrix.artifact }}
+          name: linux
+          path: |
+            notispf-qt-x86_64.AppImage
+            dist/notispf-linux
 
+  # ── macOS: .dmg + curses binary ────────────────────────────────────────────
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install ".[qt]" pyinstaller
+
+      - name: Build icon.icns from icon.png
+        run: |
+          mkdir notispf.iconset
+          for size in 16 32 64 128 256 512; do
+            sips -z $size $size assets/icon.png --out "notispf.iconset/icon_${size}x${size}.png"
+          done
+          sips -z  32   32 assets/icon.png --out notispf.iconset/icon_16x16@2x.png
+          sips -z  64   64 assets/icon.png --out notispf.iconset/icon_32x32@2x.png
+          sips -z 256  256 assets/icon.png --out notispf.iconset/icon_128x128@2x.png
+          sips -z 512  512 assets/icon.png --out notispf.iconset/icon_256x256@2x.png
+          iconutil -c icns notispf.iconset -o assets/icon.icns
+
+      - name: Build Qt .app bundle
+        run: |
+          pyinstaller --windowed --name notispf-qt \
+            --icon assets/icon.icns \
+            --osx-bundle-identifier com.mrthock.notispf \
+            --collect-all PyQt6 \
+            notispf/_qt_main.py
+
+      - name: Build curses binary
+        run: pyinstaller --onefile --name notispf-macos notispf/__main__.py
+
+      - name: Create .dmg
+        run: |
+          brew install create-dmg
+          mkdir dmg-src
+          cp -r dist/notispf-qt.app dmg-src/
+          create-dmg \
+            --volname "notispf" \
+            --volicon "assets/icon.icns" \
+            --window-size 540 380 \
+            --icon-size 100 \
+            --icon "notispf-qt.app" 160 190 \
+            --hide-extension "notispf-qt.app" \
+            --app-drop-link 380 190 \
+            "notispf-qt.dmg" \
+            "dmg-src/"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: |
+            notispf-qt.dmg
+            dist/notispf-macos
+
+  # ── Windows: installer + curses .exe ───────────────────────────────────────
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install ".[qt]" pyinstaller
+
+      - name: Build Qt .exe
+        run: pyinstaller --onefile --windowed --name notispf-qt --icon assets/icon.ico --collect-all PyQt6 notispf/_qt_main.py
+
+      - name: Build curses .exe
+        run: pyinstaller --onefile --name notispf-windows notispf/__main__.py
+
+      - name: Create installer
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          $version = "${{ github.ref_name }}" -replace '^v', ''
+          iscc /DMyAppVersion="$version" packaging\windows-installer.iss
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: |
+            Output/notispf-qt-setup.exe
+            dist/notispf-windows.exe
+
+  # ── GitHub Release ──────────────────────────────────────────────────────────
   release:
-    needs: build
+    needs: [build-linux, build-macos, build-windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -61,11 +162,15 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
+            dist/notispf-qt-x86_64.AppImage
             dist/notispf-linux
+            dist/notispf-qt.dmg
             dist/notispf-macos
+            dist/notispf-qt-setup.exe
             dist/notispf-windows.exe
           generate_release_notes: true
 
+  # ── PyPI ────────────────────────────────────────────────────────────────────
   publish:
     needs: release
     runs-on: ubuntu-latest

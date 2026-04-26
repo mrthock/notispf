@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=notispf
+GenericName=Text Editor
+Comment=ISPF-inspired text editor
+Exec=notispf-qt %F
+Icon=notispf-qt
+Terminal=false
+Categories=Utility;TextEditor;
+MimeType=text/plain;
+StartupNotify=true

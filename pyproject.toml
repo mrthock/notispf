@@ -38,6 +38,9 @@ Repository = "https://github.com/mrthock/notispf"
 notispf = "notispf.__main__:main"
 notispf-qt = "notispf.__main__:main_qt"
 
+[tool.setuptools.packages.find]
+include = ["notispf*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 

@@ -46,12 +46,16 @@ jobs:
           chmod +x appimagetool
           ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 ./appimagetool AppDir notispf-qt-x86_64.AppImage
 
+      - name: Collect release artifacts
+        run: |
+          mkdir -p release
+          cp notispf-qt-x86_64.AppImage release/
+          cp dist/notispf-linux release/
+
       - uses: actions/upload-artifact@v4
         with:
           name: linux
-          path: |
-            notispf-qt-x86_64.AppImage
-            dist/notispf-linux
+          path: release/
 
   # ── macOS: .dmg + curses binary ────────────────────────────────────────────
   build-macos:
@@ -105,12 +109,16 @@ jobs:
             "notispf-qt.dmg" \
             "dmg-src/"
 
+      - name: Collect release artifacts
+        run: |
+          mkdir -p release
+          cp notispf-qt.dmg release/
+          cp dist/notispf-macos release/
+
       - uses: actions/upload-artifact@v4
         with:
           name: macos
-          path: |
-            notispf-qt.dmg
-            dist/notispf-macos
+          path: release/
 
   # ── Windows: installer + curses .exe ───────────────────────────────────────
   build-windows:
@@ -140,12 +148,17 @@ jobs:
           iscc /DMyAppVersion="$version" packaging\windows-installer.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Collect release artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force release | Out-Null
+          Copy-Item Output\notispf-qt-setup.exe release\
+          Copy-Item dist\notispf-windows.exe release\
+
       - uses: actions/upload-artifact@v4
         with:
           name: windows
-          path: |
-            Output/notispf-qt-setup.exe
-            dist/notispf-windows.exe
+          path: release/
 
   # ── GitHub Release ──────────────────────────────────────────────────────────
   release:

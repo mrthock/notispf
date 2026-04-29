@@ -39,10 +39,9 @@ class AppQt(App):
         vs.pending_prefixes = dict(self.prefix_area._pending)
 
         if vs.prefix_mode:
-            if vs.prefix_input:
-                vs.pending_prefixes[vs.cursor_line] = vs.prefix_input
-            else:
-                vs.pending_prefixes.pop(vs.cursor_line, None)
+            line_num_str = f"{vs.cursor_line + 1:06}"
+            typed = vs.prefix_input
+            vs.pending_prefixes[vs.cursor_line] = (typed + line_num_str[len(typed):])[:6]
 
         if self.prefix_area._open_block:
             vs.open_block_line = self.prefix_area._open_block.line_idx
@@ -150,8 +149,13 @@ class AppQt(App):
             self._scroll_col_to_cursor()
 
         elif key == Qt.Key.Key_Left:
-            vs.cursor_col = max(0, vs.cursor_col - 1)
-            self._scroll_col_to_cursor()
+            if vs.cursor_col == 0:
+                vs.prefix_mode  = True
+                vs.prefix_input = self.prefix_area._pending.get(vs.cursor_line, "")
+                vs.message = "Type prefix command, Enter to execute, Esc to cancel"
+            else:
+                vs.cursor_col -= 1
+                self._scroll_col_to_cursor()
 
         elif key == Qt.Key.Key_Right:
             if self.buffer.lines:
@@ -299,6 +303,13 @@ class AppQt(App):
                 vs.show_command = True
             vs.command_mode = True
             self.window.cmd_input.setFocus()
+
+        elif key == Qt.Key.Key_Right:
+            self._stage_current_prefix()
+            vs.prefix_mode  = False
+            vs.prefix_input = ""
+            vs.message      = ""
+            vs.cursor_col   = 0
 
         elif key == Qt.Key.Key_Backspace:
             vs.prefix_input = vs.prefix_input[:-1]

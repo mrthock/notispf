@@ -77,12 +77,15 @@ notispf <file>
 000003|Third line
       |~
       |~
+F1-HELP  F3-SAVE  F5-RFIND  F6-CMD  F7-UP  F8-DOWN  F10-LEFT  F11-RIGHT  F12-QUIT
+                                                                 [message bar]
 ```
 
 - **Status bar** (top row) — filename, modified flag `[+]`, current line/total, cursor column, `[HEX]` when hex mode is active
 - **Command bar** (second row) — always visible; type commands here after pressing F6 to focus it
-- **Prefix column** (left, 6 chars) — shows line numbers; type prefix commands here
+- **Prefix column** (left, 6 chars) — shows zero-padded line numbers; type prefix commands here
 - **Text area** (right of `|`) — edit your file
+- **Function key bar** (second-to-last row) — always-visible reference for function key shortcuts
 - **Message bar** (bottom row) — status messages and feedback
 
 ## Navigation
@@ -102,8 +105,10 @@ notispf <file>
 |------|-----|----|
 | Text | Home | Command bar |
 | Text | Tab | Prefix column of next line (N+1) |
+| Text (col 0) | Left arrow | Prefix column of same line |
 | Text (top line) | Shift+Tab | Command bar |
 | Text (any other line) | Shift+Tab | Prefix column of previous line (N-1) |
+| Prefix | Right arrow | Text area of same line (col 0) |
 | Prefix | Home | Command bar |
 | Prefix | Tab | Text area of same line |
 | Prefix | Shift+Tab | Text area of previous line (N-1) |

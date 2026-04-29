@@ -108,6 +108,16 @@ When `enter_prefix(line_idx, raw)` is called:
 Mismatched block partners (e.g. `DD` followed by `CC`) are rejected with an error
 message and both entries cleared.
 
+**Left/Right arrow navigation** — In text mode, pressing Left when `cursor_col == 0`
+enters prefix mode for the current line instead of stopping at the column boundary.
+In prefix mode, pressing Right exits back to text mode at column 0. This mirrors the
+ISPF experience of moving fluidly between the prefix and text areas.
+
+**ISPF prefix overlay** — While typing in prefix mode the line number stays visible.
+Typed characters overtype it from the left (e.g. typing `D` on line 1 shows `D00001`).
+Implemented in `_render()` by computing `(typed + line_num_str[len(typed):])[:6]`.
+Only `prefix_input` (not the overlay string) is staged.
+
 ---
 
 ### `display.py` — Rendering
@@ -126,8 +136,9 @@ The render pipeline per frame:
 1. `_render_status()` — row 0: status bar (filename, modified flag, line/total, cursor column, `[HEX]` indicator)
 2. `_render_command_bar()` — row 1: always-visible command input (`===> ...`), shown when `show_command` is True
 3. `_render_content()` or `_render_help()` — main content area (starts at row 2 when command bar is visible)
-4. `_render_bottom()` — last row: status messages
-5. `_place_cursor()` — moves the hardware cursor to the right position (row 1 when `command_mode`, otherwise into content)
+4. `_render_fkey_bar()` — second-to-last row: always-visible function key reference (`F1-HELP  F3-SAVE  F5-RFIND …`)
+5. `_render_bottom()` — last row: status messages
+6. `_place_cursor()` — moves the hardware cursor to the right position (row 1 when `command_mode`, otherwise into content)
 
 **`build_view()`** converts the buffer into a flat list of view entries:
 - `('line', buf_idx)` — a normal visible line
@@ -160,8 +171,8 @@ parsing, find/change, undo/redo) is inherited unchanged.
 - **`CommandInput(QLineEdit)`** — the `===>` command bar. Overrides `event()` to intercept
   Tab/Backtab before Qt's focus-traversal machinery steals them.
 - **`NotispfWindow(QMainWindow)`** — top-level window. Hosts the status label, command bar,
-  editor viewport, and message bar. An event filter on `CommandInput` handles F3, F5, F6,
-  Escape, and Down from the command bar.
+  editor viewport, function key bar label, and message bar. An event filter on `CommandInput`
+  handles F3, F5, F6, Escape, and Down from the command bar.
 
 **`app_qt.py`** (`AppQt`) overrides:
 

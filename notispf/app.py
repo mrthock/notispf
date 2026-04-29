@@ -68,12 +68,11 @@ class App:
         self.vs.screen_rows = rows
         self.vs.screen_cols = cols
         self.vs.pending_prefixes = dict(self.prefix_area._pending)
-        # Overlay the live input for the current line while the user is typing
+        # Overlay typed chars onto the line number digits (ISPF behaviour: number stays visible)
         if self.vs.prefix_mode:
-            if self.vs.prefix_input:
-                self.vs.pending_prefixes[self.vs.cursor_line] = self.vs.prefix_input
-            else:
-                self.vs.pending_prefixes.pop(self.vs.cursor_line, None)
+            line_num_str = f"{self.vs.cursor_line + 1:06}"
+            typed = self.vs.prefix_input
+            self.vs.pending_prefixes[self.vs.cursor_line] = (typed + line_num_str[len(typed):])[:6]
         if self.prefix_area._open_block:
             self.vs.open_block_line = self.prefix_area._open_block.line_idx
             self.vs.open_block_cmd = self.prefix_area._open_block.cmd_name
@@ -136,8 +135,13 @@ class App:
                 vs.cursor_col = len(self.buffer.lines[vs.cursor_line].text)
             self._scroll_col_to_cursor()
         elif key == curses.KEY_LEFT:
-            vs.cursor_col = max(0, vs.cursor_col - 1)
-            self._scroll_col_to_cursor()
+            if vs.cursor_col == 0:
+                vs.prefix_mode = True
+                vs.prefix_input = self.prefix_area._pending.get(vs.cursor_line, "")
+                vs.message = "Type prefix command, Enter to execute, Esc to cancel"
+            else:
+                vs.cursor_col -= 1
+                self._scroll_col_to_cursor()
         elif key == curses.KEY_RIGHT:
             if self.buffer.lines:
                 vs.cursor_col = min(
@@ -530,6 +534,13 @@ class App:
                 vs.show_command = True
             vs.command_mode = True
 
+        elif key == curses.KEY_RIGHT:
+            self._stage_current_prefix()
+            vs.prefix_mode = False
+            vs.prefix_input = ""
+            vs.message = ""
+            vs.cursor_col = 0
+
         elif key == curses.KEY_BACKSPACE or key == 127:
             vs.prefix_input = vs.prefix_input[:-1]
 
@@ -557,9 +568,15 @@ class App:
         last_message = ""
         pending = dict(self.prefix_area._pending)
         paste_cmds = {"A", "B", "O", "OO"}
+        # If a block command is already waiting for its partner, skip re-entering
+        # that line — calling enter_prefix on it again would pair it with itself.
+        open_block_line = self.prefix_area._open_block.line_idx \
+            if self.prefix_area._open_block else None
 
         # Pass 1: everything except A/B, in line order
         for line_idx in sorted(pending.keys()):
+            if line_idx == open_block_line:
+                continue
             raw = pending[line_idx]
             cmd_name, _ = self.prefix_area.registry.normalize(raw)
             if cmd_name in paste_cmds:
@@ -607,7 +624,7 @@ class App:
         """Visible text rows, accounting for the command bar and column ruler."""
         rows, _ = self.display.stdscr.getmaxyx()
         vs = self.vs
-        return rows - 2 - (1 if vs.show_cols else 0) - (1 if vs.show_command else 0)
+        return rows - 3 - (1 if vs.show_cols else 0) - (1 if vs.show_command else 0)
 
     def _scroll_col_to_cursor(self) -> None:
         """Adjust col_offset so cursor_col is always visible in the text area."""

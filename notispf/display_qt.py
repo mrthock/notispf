@@ -449,6 +449,20 @@ class NotispfWindow(QMainWindow):
         self.editor = EditorViewport(self.app)
         layout.addWidget(self.editor, 1)
 
+        # Function key bar
+        fkey_items = [
+            ("F1", "HELP"), ("F3", "SAVE"), ("F5", "RFIND"), ("F6", "CMD"),
+            ("F7", "UP"), ("F8", "DOWN"), ("F10", "LEFT"), ("F11", "RIGHT"),
+            ("F12", "QUIT"),
+        ]
+        fkey_text = "  ".join(f"{k}-{v}" for k, v in fkey_items)
+        self.fkey_lbl = QLabel(fkey_text)
+        self.fkey_lbl.setFixedHeight(20)
+        self.fkey_lbl.setStyleSheet(
+            "background:#2d2d2d; color:#aaaaaa;"
+            " font-family:Monospace; padding:2px 6px;")
+        layout.addWidget(self.fkey_lbl)
+
         # Message bar
         self.msg_lbl = QLabel()
         self.msg_lbl.setFixedHeight(20)

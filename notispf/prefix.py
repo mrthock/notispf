@@ -99,4 +99,4 @@ class PrefixArea:
         line = self.buffer.lines[line_idx]
         if line.label:
             return f".{line.label:<5}"[:6]
-        return f"{line_number:>6}"
+        return f"{line_number:06}"

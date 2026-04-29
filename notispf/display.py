@@ -17,6 +17,7 @@ _CP_MSG      = 6   # message line
 _CP_CMD      = 7   # command input line
 _CP_RULER    = 9   # column ruler
 _CP_HIGHLIGHT = 10  # found pattern highlight
+_CP_FKEY     = 11  # function key bar
 
 
 @dataclass
@@ -74,8 +75,21 @@ class Display:
         curses.init_pair(_CP_CMD,      curses.COLOR_WHITE,  cmd_bg)
         curses.init_pair(_CP_RULER,    curses.COLOR_BLACK,  curses.COLOR_WHITE)
         curses.init_pair(_CP_HIGHLIGHT, curses.COLOR_BLACK,  curses.COLOR_YELLOW)
+        curses.init_pair(_CP_FKEY,     curses.COLOR_BLACK,  curses.COLOR_WHITE)
 
         self.stdscr.keypad(True)
+
+    _FKEY_ITEMS = [
+        ("F1",  "HELP"),
+        ("F3",  "SAVE"),
+        ("F5",  "RFIND"),
+        ("F6",  "CMD"),
+        ("F7",  "UP"),
+        ("F8",  "DOWN"),
+        ("F10", "LEFT"),
+        ("F11", "RIGHT"),
+        ("F12", "QUIT"),
+    ]
 
     def render(self, buffer, prefix_area, vs: ViewState) -> None:
         self.stdscr.erase()
@@ -86,11 +100,13 @@ class Display:
         self._render_status(buffer, vs, cols)
         if vs.help_mode:
             self._render_help(vs, rows, cols)
+            self._render_fkey_bar(rows, cols)
             self._render_bottom(vs, rows, cols)
         else:
             if vs.show_command:
                 self._render_command_bar(vs, cols)
             self._render_content(buffer, prefix_area, vs, rows, cols)
+            self._render_fkey_bar(rows, cols)
             self._render_bottom(vs, rows, cols)
             self._place_cursor(vs, rows)
 
@@ -160,7 +176,7 @@ class Display:
     def _render_content(self, buffer, prefix_area, vs: ViewState,
                         rows: int, cols: int) -> None:
         cmd_offset = 1 if vs.show_command else 0
-        content_rows = rows - 2 - cmd_offset
+        content_rows = rows - 3 - cmd_offset
         first_row = 1 + cmd_offset
         text_width = cols - TEXT_OFFSET
         ruler_offset = 1 if vs.show_cols else 0
@@ -339,15 +355,15 @@ class Display:
         "",
         "  NAVIGATION",
         "  " + "─" * 60,
-        "  Arrow keys  Move cursor           End       End of line",
+        "  Arrow keys  Move cursor           End / Ctrl-E  End of line",
+        "  Left (col 0)  Enter prefix mode   Right (prefix) Return to text",
         "  Home        Focus command bar     Ctrl-A    Start of line",
         "  Up (top line)  Go to command bar  Shift+Tab (top) Go to command bar",
-        "  Ctrl-E      End of line",
         "",
     ]
 
     def _render_help(self, vs: ViewState, rows: int, cols: int) -> None:
-        content_rows = rows - 2
+        content_rows = rows - 3
         lines = self._HELP_LINES
         for screen_row in range(content_rows):
             row = screen_row + 1
@@ -360,6 +376,16 @@ class Display:
             else:
                 self._addstr_clipped(row, 0, " " * cols,
                                      curses.color_pair(_CP_TEXT))
+
+    # ------------------------------------------------------------------
+    # Function key bar (second-to-last row)
+    # ------------------------------------------------------------------
+
+    def _render_fkey_bar(self, rows: int, cols: int) -> None:
+        row = rows - 2
+        text = "  ".join(f"{k}-{v}" for k, v in self._FKEY_ITEMS)
+        text = text.ljust(cols)[:cols]
+        self._addstr_clipped(row, 0, text, curses.color_pair(_CP_FKEY))
 
     # ------------------------------------------------------------------
     # Bottom row: message or command input

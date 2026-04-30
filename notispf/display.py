@@ -49,6 +49,10 @@ PREFIX_WIDTH = 6
 SEP_WIDTH = 1                   # the "|" separator
 TEXT_OFFSET = PREFIX_WIDTH + SEP_WIDTH
 
+# Sentinel indices — virtual rows that bracket the real buffer
+TOP_SENTINEL = -1   # row above line 0  (******* / TOP OF DATA)
+BOT_SENTINEL = -2   # row below last line (******* / BOTTOM OF DATA)
+
 
 class Display:
     def __init__(self, stdscr):
@@ -108,7 +112,7 @@ class Display:
             self._render_content(buffer, prefix_area, vs, rows, cols)
             self._render_fkey_bar(rows, cols)
             self._render_bottom(vs, rows, cols)
-            self._place_cursor(vs, rows)
+            self._place_cursor(buffer, vs, rows)
 
         self.stdscr.noutrefresh()
         curses.doupdate()
@@ -121,7 +125,12 @@ class Display:
         filename = buffer.filepath or "[No File]"
         modified = " [+]" if buffer.modified else ""
         hex_ind = " [HEX]" if vs.hex_mode else ""
-        position = f"  Line {vs.cursor_line + 1}/{len(buffer)}  Col {vs.cursor_col + 1}"
+        if vs.cursor_line == TOP_SENTINEL:
+            position = "  TOP OF DATA  "
+        elif vs.cursor_line == BOT_SENTINEL:
+            position = "  BOTTOM OF DATA  "
+        else:
+            position = f"  Line {vs.cursor_line + 1}/{len(buffer)}  Col {vs.cursor_col + 1}"
         left = f" notispf  {filename}{modified}{hex_ind}"
         right = position + "  "
         padding = cols - len(left) - len(right)
@@ -139,10 +148,14 @@ class Display:
         """Build a view list from top_line filling up to content_rows entries.
 
         Each entry is one of:
+          ('top',)
           ('line', buf_idx)
           ('fold', start_idx, end_idx, count)
+          ('bot',)
         """
         entries = []
+        if top_line == 0 and content_rows > 0:
+            entries.append(('top',))
         i = top_line
         while i < len(buffer) and len(entries) < content_rows:
             if not buffer.lines[i].excluded:
@@ -153,6 +166,8 @@ class Display:
                 while i < len(buffer) and buffer.lines[i].excluded:
                     i += 1
                 entries.append(('fold', start, i - 1, i - start))
+        if i >= len(buffer) and len(entries) < content_rows:
+            entries.append(('bot',))
         return entries
 
     @staticmethod
@@ -203,6 +218,23 @@ class Display:
                 continue
 
             entry = view[screen_row]
+
+            if entry[0] in ('top', 'bot'):
+                is_top = entry[0] == 'top'
+                sentinel_key = TOP_SENTINEL if is_top else BOT_SENTINEL
+                label = "- - - TOP OF DATA - - -" if is_top \
+                    else "- - - BOTTOM OF DATA - - -"
+                pfx = vs.pending_prefixes.get(sentinel_key, "")
+                overlay = (pfx + "******"[len(pfx):])[:PREFIX_WIDTH] \
+                    if pfx else "******"
+                self._addstr_clipped(row, 0, overlay,
+                                     curses.color_pair(_CP_MODIFIED))
+                self._addstr_clipped(row, PREFIX_WIDTH, "|",
+                                     curses.color_pair(_CP_SEP))
+                self._addstr_clipped(row, TEXT_OFFSET,
+                                     label.ljust(text_width)[:text_width],
+                                     curses.color_pair(_CP_MODIFIED))
+                continue
 
             if entry[0] == 'fold':
                 _, start_idx, end_idx, count = entry
@@ -336,8 +368,8 @@ class Display:
         "  O / On    Overlay clipboard       OO        Overlay block",
         "  X / Xn    Exclude line(s)         XX        Exclude block",
         "  S / Sn    Show (un-exclude)       SS        Show block",
-        "  >n        Indent right n cols     >>n       Indent block right n cols",
-        "  <n        Indent left n cols      <<n       Indent block left n cols",
+        "  )n        Indent right n cols     ))n       Indent block right n cols",
+        "  (n        Indent left n cols      ((n       Indent block left n cols",
         "  HEX       Replace line with hex   HEXB      Insert hex copy below",
         "  HEXA      Convert hex line to ASCII",
         "  UC / UCn  Uppercase line(s)        LC / LCn  Lowercase line(s)",
@@ -402,7 +434,13 @@ class Display:
     # Cursor placement
     # ------------------------------------------------------------------
 
-    def _place_cursor(self, vs: ViewState, rows: int) -> None:
+    def _place_cursor(self, buffer, vs: ViewState, rows: int) -> None:
+        cmd_offset    = 1 if vs.show_command else 0
+        ruler_offset  = 1 if vs.show_cols else 0
+        first_row     = 1 + cmd_offset + ruler_offset
+        # Top sentinel occupies one row when top_line == 0
+        sentinel_offset = 1 if vs.top_line == 0 else 0
+
         if vs.command_mode:
             prompt_len = len("===> ")
             col = min(prompt_len + len(vs.command_input), vs.screen_cols - 1)
@@ -410,20 +448,30 @@ class Display:
                 self.stdscr.move(1, col)
             except curses.error:
                 pass
+
         elif vs.prefix_mode:
-            cmd_offset = 1 if vs.show_command else 0
-            ruler_offset = 1 if vs.show_cols else 0
-            screen_row = vs.cursor_line - vs.top_line + 1 + cmd_offset + ruler_offset
+            if vs.cursor_line == TOP_SENTINEL:
+                screen_row = first_row
+            elif vs.cursor_line == BOT_SENTINEL:
+                content_rows = rows - 3 - cmd_offset - ruler_offset
+                view = Display.build_view(buffer, vs.top_line, content_rows)
+                pos = next((i for i, e in enumerate(view) if e[0] == 'bot'), -1)
+                if pos == -1:
+                    return
+                screen_row = first_row + pos
+            else:
+                screen_row = vs.cursor_line - vs.top_line + first_row + sentinel_offset
             screen_col = min(len(vs.prefix_input), PREFIX_WIDTH - 1)
             if 0 < screen_row < rows - 1:
                 try:
                     self.stdscr.move(screen_row, screen_col)
                 except curses.error:
                     pass
+
         else:
-            cmd_offset = 1 if vs.show_command else 0
-            ruler_offset = 1 if vs.show_cols else 0
-            screen_row = vs.cursor_line - vs.top_line + 1 + cmd_offset + ruler_offset
+            if vs.cursor_line < 0:  # on a sentinel — no text cursor
+                return
+            screen_row = vs.cursor_line - vs.top_line + first_row + sentinel_offset
             screen_col = TEXT_OFFSET + vs.cursor_col - vs.col_offset
             if 0 < screen_row < rows - 1 and TEXT_OFFSET <= screen_col < vs.screen_cols:
                 try:

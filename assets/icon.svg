@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <clipPath id="clip">
+      <rect width="512" height="512" rx="80" ry="80"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="80" ry="80" fill="#1e1e1e"/>
+
+  <g clip-path="url(#clip)">
+
+    <!-- ── Status bar ───────────────────────────────────────── -->
+    <rect x="0" y="0" width="512" height="58" fill="#00aaaa"/>
+    <text x="18" y="41" font-family="'Courier New',Courier,monospace"
+          font-size="30" font-weight="bold" fill="#003333">notispf</text>
+    <text x="350" y="41" font-family="'Courier New',Courier,monospace"
+          font-size="17" fill="#004444">Ln 3/6  Col 1</text>
+
+    <!-- ── Command bar ─────────────────────────────────────── -->
+    <rect x="0" y="58" width="512" height="38" fill="#2d4a1e"/>
+    <text x="10" y="84" font-family="'Courier New',Courier,monospace"
+          font-size="22" fill="#88cc88">===> </text>
+
+    <!-- ── Prefix column background ───────────────────────── -->
+    <rect x="0" y="96" width="96" height="360" fill="#141414"/>
+
+    <!-- ── Separator ───────────────────────────────────────── -->
+    <rect x="96" y="96" width="4" height="360" fill="#00cccc"/>
+
+    <!-- ── TOP OF DATA  (y=96, baseline=122) ─────────────── -->
+    <text x="4"   y="122" font-family="'Courier New',Courier,monospace" font-size="22" fill="#ffff00">******</text>
+    <text x="106" y="122" font-family="'Courier New',Courier,monospace" font-size="19" fill="#ffff00">- - - TOP OF DATA - - -</text>
+
+    <!-- ── Line 1  (y=132, baseline=158) ──────────────────── -->
+    <text x="4"   y="158" font-family="'Courier New',Courier,monospace" font-size="22" fill="#00cccc">000001</text>
+    <text x="106" y="158" font-family="'Courier New',Courier,monospace" font-size="19" fill="#d4d4d4">**  notispf editor  **</text>
+
+    <!-- ── Line 2  (y=168, baseline=194) ──────────────────── -->
+    <text x="4"   y="194" font-family="'Courier New',Courier,monospace" font-size="22" fill="#00cccc">000002</text>
+    <text x="106" y="194" font-family="'Courier New',Courier,monospace" font-size="19" fill="#d4d4d4">prefix cmds: D I C M A</text>
+
+    <!-- ── Line 3  highlighted  (y=204, baseline=230) ─────── -->
+    <rect x="100" y="204" width="412" height="36" fill="#b8860b"/>
+    <text x="4"   y="230" font-family="'Courier New',Courier,monospace" font-size="22" fill="#00cccc">000003</text>
+    <text x="106" y="230" font-family="'Courier New',Courier,monospace" font-size="19" fill="#ffffff">FIND 'pattern' here</text>
+
+    <!-- ── Line 4  D prefix  (y=240, baseline=266) ────────── -->
+    <text x="4"   y="266" font-family="'Courier New',Courier,monospace" font-size="22" fill="#ffff00">D00004</text>
+    <text x="106" y="266" font-family="'Courier New',Courier,monospace" font-size="19" fill="#888888">line marked for delete</text>
+
+    <!-- ── Line 5  (y=276, baseline=302) ──────────────────── -->
+    <text x="4"   y="302" font-family="'Courier New',Courier,monospace" font-size="22" fill="#00cccc">000005</text>
+    <text x="106" y="302" font-family="'Courier New',Courier,monospace" font-size="19" fill="#d4d4d4">undo · redo · exclude</text>
+
+    <!-- ── Line 6  (y=312, baseline=338) ──────────────────── -->
+    <text x="4"   y="338" font-family="'Courier New',Courier,monospace" font-size="22" fill="#00cccc">000006</text>
+    <text x="106" y="338" font-family="'Courier New',Courier,monospace" font-size="19" fill="#d4d4d4">Linux · macOS · z/OS</text>
+
+    <!-- ── BOTTOM OF DATA  (y=348, baseline=374) ──────────── -->
+    <text x="4"   y="374" font-family="'Courier New',Courier,monospace" font-size="22" fill="#ffff00">******</text>
+    <text x="106" y="374" font-family="'Courier New',Courier,monospace" font-size="19" fill="#ffff00">- - - BOTTOM OF DATA - -</text>
+
+    <!-- ── Tilde rows ──────────────────────────────────────── -->
+    <text x="106" y="410" font-family="'Courier New',Courier,monospace" font-size="24" fill="#404040">~</text>
+    <text x="106" y="446" font-family="'Courier New',Courier,monospace" font-size="24" fill="#303030">~</text>
+
+    <!-- ── Fkey bar ────────────────────────────────────────── -->
+    <rect x="0" y="456" width="512" height="28" fill="#2d2d2d"/>
+    <text x="8" y="474" font-family="'Courier New',Courier,monospace"
+          font-size="15" fill="#aaaaaa">F1-HELP  F3-SAVE  F5-RFIND  F6-CMD  F12-QUIT</text>
+
+    <!-- ── Message bar ─────────────────────────────────────── -->
+    <rect x="0" y="484" width="512" height="28" fill="#1e1e1e"/>
+
+  </g>
+</svg>

@@ -9,7 +9,7 @@ from notispf.commands.registry import CommandRegistry
 from notispf.commands import line_cmds, block_cmds, exclude_cmds
 from notispf.commands.line_cmds import line_to_hex, hex_to_line
 from notispf.buffer import Line
-from notispf.display import Display, ViewState, TEXT_OFFSET
+from notispf.display import Display, ViewState, TEXT_OFFSET, TOP_SENTINEL, BOT_SENTINEL
 from notispf.find_change import FindChangeEngine
 from notispf.prefix import PrefixArea
 
@@ -107,7 +107,14 @@ class App:
 
         # Navigation
         if key == curses.KEY_UP:
-            if vs.show_command and vs.cursor_line <= vs.top_line:
+            if vs.cursor_line == TOP_SENTINEL:
+                # Up from top sentinel → command bar (nothing above)
+                if vs.show_command:
+                    vs.prefix_mode = False
+                    vs.prefix_input = ""
+                    vs.message = ""
+                    vs.command_mode = True
+            elif vs.show_command and 0 < vs.cursor_line <= vs.top_line:
                 vs.command_mode = True
                 vs.message = ""
             else:
@@ -212,15 +219,15 @@ class App:
         elif key == ord('\x19'):  # Ctrl+Y
             vs.message = "Redone" if self.buffer.redo() else "Nothing to redo"
 
-        # Text editing (Phase 6 — placeholder)
-        elif key == curses.KEY_BACKSPACE or key == 127:
-            self._backspace()
-        elif key == curses.KEY_DC:
-            self._delete_char()
-        elif key in (curses.KEY_ENTER, ord('\n'), ord('\r')):
-            self._enter_key()
-        elif 32 <= key <= 126:
-            self._insert_char(chr(key))
+        elif vs.cursor_line >= 0:  # no text editing on sentinel rows
+            if key == curses.KEY_BACKSPACE or key == 127:
+                self._backspace()
+            elif key == curses.KEY_DC:
+                self._delete_char()
+            elif key in (curses.KEY_ENTER, ord('\n'), ord('\r')):
+                self._enter_key()
+            elif 32 <= key <= 126:
+                self._insert_char(chr(key))
 
         return False
 
@@ -482,8 +489,71 @@ class App:
 
         return f"Unknown command: {cmd}"
 
+    def _execute_sentinel_prefix(self) -> None:
+        vs = self.vs
+        raw = vs.prefix_input.strip().upper()
+        vs.prefix_input = ""
+        if not raw:
+            return
+        cmd_name, numeric_arg = self.prefix_area.registry.normalize(raw)
+        if cmd_name != "I":
+            vs.message = "Only I (insert) is valid on sentinel rows"
+            return
+        n = max(1, numeric_arg)
+        if vs.cursor_line == TOP_SENTINEL:
+            self.buffer.insert_lines(-1, [""] * n)
+            vs.cursor_line = 0
+        else:  # BOT_SENTINEL
+            insert_after = len(self.buffer) - 1 if self.buffer.lines else -1
+            self.buffer.insert_lines(insert_after, [""] * n)
+            vs.cursor_line = len(self.buffer) - 1
+        vs.cursor_col = 0
+        vs.prefix_mode = False
+        vs.message = f"Inserted {n} line(s)"
+        self.prefix_area._pending.pop(TOP_SENTINEL, None)
+        self.prefix_area._pending.pop(BOT_SENTINEL, None)
+        self._scroll_to_cursor()
+
     def _handle_prefix_key(self, key: int) -> bool:
         vs = self.vs
+
+        # Sentinel rows — only I/In is valid
+        if vs.cursor_line in (TOP_SENTINEL, BOT_SENTINEL):
+            if key in (curses.KEY_ENTER, ord('\n'), ord('\r')):
+                self._execute_sentinel_prefix()
+            elif key == 27:  # Escape
+                vs.prefix_input = ""
+                vs.message = ""
+            elif key == curses.KEY_DOWN or key == curses.KEY_RIGHT:
+                vs.prefix_mode = False
+                vs.prefix_input = ""
+                vs.message = ""
+                if vs.cursor_line == TOP_SENTINEL:
+                    if self.buffer.lines:
+                        vs.cursor_line = self.buffer.next_visible(0, 1)
+                    else:
+                        vs.cursor_line = BOT_SENTINEL
+                else:
+                    pass  # already at bottom, stay
+            elif key == curses.KEY_UP or (vs.cursor_line == BOT_SENTINEL and key == curses.KEY_LEFT):
+                vs.prefix_mode = False
+                vs.prefix_input = ""
+                vs.message = ""
+                if vs.cursor_line == BOT_SENTINEL:
+                    if self.buffer.lines:
+                        vs.cursor_line = self.buffer.next_visible(
+                            len(self.buffer) - 1, -1)
+                    else:
+                        vs.cursor_line = TOP_SENTINEL
+                else:
+                    # Top sentinel, Up → command bar
+                    if vs.show_command:
+                        vs.command_mode = True
+            elif key in (curses.KEY_BACKSPACE, 127):
+                vs.prefix_input = vs.prefix_input[:-1]
+            elif 32 <= key <= 126 and len(vs.prefix_input) < 6:
+                vs.prefix_input += chr(key)
+            return False
 
         if key in (curses.KEY_ENTER, ord('\n'), ord('\r')):
             # Save current line's input, then execute all staged prefixes
@@ -706,8 +776,44 @@ class App:
 
     def _move_cursor(self, delta: int, skip_excluded: bool = True) -> None:
         vs = self.vs
-        buf_len = max(len(self.buffer), 1)
-        new_line = max(0, min(vs.cursor_line + delta, buf_len - 1))
+
+        if vs.cursor_line == TOP_SENTINEL:
+            if delta > 0:
+                vs.cursor_line = self.buffer.next_visible(0, 1) \
+                    if self.buffer.lines else BOT_SENTINEL
+                vs.prefix_mode = False
+                vs.prefix_input = ""
+                vs.message = ""
+            self._scroll_to_cursor()
+            return
+
+        if vs.cursor_line == BOT_SENTINEL:
+            if delta < 0:
+                last = max(0, len(self.buffer) - 1)
+                vs.cursor_line = self.buffer.next_visible(last, -1) \
+                    if self.buffer.lines else TOP_SENTINEL
+                vs.prefix_mode = False
+                vs.prefix_input = ""
+                vs.message = ""
+            self._scroll_to_cursor()
+            return
+
+        new_line = vs.cursor_line + delta
+        if new_line < 0:
+            vs.cursor_line = TOP_SENTINEL
+            vs.prefix_mode = True
+            vs.prefix_input = self.prefix_area._pending.get(TOP_SENTINEL, "")
+            vs.message = "Type I to insert above — Enter to execute, Esc to cancel"
+            self._scroll_to_cursor()
+            return
+        if new_line >= len(self.buffer):
+            vs.cursor_line = BOT_SENTINEL
+            vs.prefix_mode = True
+            vs.prefix_input = self.prefix_area._pending.get(BOT_SENTINEL, "")
+            vs.message = "Type I to insert below — Enter to execute, Esc to cancel"
+            self._scroll_to_cursor()
+            return
+
         if skip_excluded:
             direction = 1 if delta >= 0 else -1
             new_line = self.buffer.next_visible(new_line, direction)
@@ -720,6 +826,15 @@ class App:
     def _scroll_to_cursor(self) -> None:
         vs = self.vs
         content_rows = self._content_rows() - (1 if vs.show_command else 0)
+        if vs.cursor_line == TOP_SENTINEL:
+            vs.top_line = 0
+            return
+        if vs.cursor_line == BOT_SENTINEL:
+            # Treat sentinel as virtual line at index len(buffer); scroll so it's visible
+            virtual = len(self.buffer)
+            if virtual >= vs.top_line + content_rows:
+                vs.top_line = max(0, virtual - content_rows + 1)
+            return
         if vs.cursor_line < vs.top_line:
             vs.top_line = vs.cursor_line
         elif vs.cursor_line >= vs.top_line + content_rows:

@@ -1,6 +1,7 @@
 """PyQt6 application controller — subclasses App, replaces the curses I/O layer."""
 from __future__ import annotations
 
+import os
 import sys
 
 from PyQt6.QtWidgets import QApplication
@@ -8,7 +9,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QKeyEvent
 
 from notispf.app import App
-from notispf.display import Display, TEXT_OFFSET
+from notispf.display import Display, TEXT_OFFSET, TOP_SENTINEL, BOT_SENTINEL
 
 
 class AppQt(App):
@@ -39,9 +40,12 @@ class AppQt(App):
         vs.pending_prefixes = dict(self.prefix_area._pending)
 
         if vs.prefix_mode:
-            line_num_str = f"{vs.cursor_line + 1:06}"
+            if vs.cursor_line in (TOP_SENTINEL, BOT_SENTINEL):
+                bg = "******"
+            else:
+                bg = f"{vs.cursor_line + 1:06}"
             typed = vs.prefix_input
-            vs.pending_prefixes[vs.cursor_line] = (typed + line_num_str[len(typed):])[:6]
+            vs.pending_prefixes[vs.cursor_line] = (typed + bg[len(typed):])[:6]
 
         if self.prefix_area._open_block:
             vs.open_block_line = self.prefix_area._open_block.line_idx
@@ -110,7 +114,14 @@ class AppQt(App):
         content_rows = self._content_rows()
 
         if key == Qt.Key.Key_Up:
-            if vs.show_command and vs.cursor_line <= vs.top_line:
+            if vs.cursor_line == TOP_SENTINEL:
+                if vs.show_command:
+                    vs.prefix_mode = False
+                    vs.prefix_input = ""
+                    vs.message = ""
+                    vs.command_mode = True
+                    self.window.cmd_input.setFocus()
+            elif vs.show_command and 0 < vs.cursor_line <= vs.top_line:
                 vs.command_mode = True
                 vs.message = ""
             else:
@@ -220,19 +231,17 @@ class AppQt(App):
         elif key == Qt.Key.Key_Y and mods & Qt.KeyboardModifier.ControlModifier:
             vs.message = "Redone" if self.buffer.redo() else "Nothing to redo"
 
-        elif key == Qt.Key.Key_Backspace:
-            self._backspace()
-
-        elif key == Qt.Key.Key_Delete:
-            self._delete_char()
-
-        elif key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
-            self._enter_key()
-
-        else:
-            ch = event.text()
-            if ch and len(ch) == 1 and 32 <= ord(ch) <= 126:
-                self._insert_char(ch)
+        elif vs.cursor_line >= 0:  # no text editing on sentinel rows
+            if key == Qt.Key.Key_Backspace:
+                self._backspace()
+            elif key == Qt.Key.Key_Delete:
+                self._delete_char()
+            elif key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+                self._enter_key()
+            else:
+                ch = event.text()
+                if ch and len(ch) == 1 and 32 <= ord(ch) <= 126:
+                    self._insert_char(ch)
 
         self._render()
 
@@ -255,6 +264,48 @@ class AppQt(App):
     def _handle_prefix_key_qt(self, event: QKeyEvent) -> None:
         vs  = self.vs
         key = event.key()
+
+        # Sentinel rows — only I/In is valid
+        if vs.cursor_line in (TOP_SENTINEL, BOT_SENTINEL):
+            if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+                self._execute_sentinel_prefix()
+            elif key == Qt.Key.Key_Escape:
+                vs.prefix_input = ""
+                vs.message = ""
+            elif key in (Qt.Key.Key_Down, Qt.Key.Key_Right) \
+                    and vs.cursor_line == TOP_SENTINEL:
+                vs.prefix_mode = False
+                vs.prefix_input = ""
+                vs.message = ""
+                if self.buffer.lines:
+                    vs.cursor_line = self.buffer.next_visible(0, 1)
+                else:
+                    vs.cursor_line = BOT_SENTINEL
+            elif key in (Qt.Key.Key_Up, Qt.Key.Key_Right) \
+                    and vs.cursor_line == BOT_SENTINEL:
+                vs.prefix_mode = False
+                vs.prefix_input = ""
+                vs.message = ""
+                if self.buffer.lines:
+                    vs.cursor_line = self.buffer.next_visible(
+                        len(self.buffer) - 1, -1)
+                else:
+                    vs.cursor_line = TOP_SENTINEL
+            elif key == Qt.Key.Key_Up and vs.cursor_line == TOP_SENTINEL:
+                vs.prefix_mode = False
+                vs.prefix_input = ""
+                vs.message = ""
+                if vs.show_command:
+                    vs.command_mode = True
+                    self.window.cmd_input.setFocus()
+            elif key == Qt.Key.Key_Backspace:
+                vs.prefix_input = vs.prefix_input[:-1]
+            else:
+                ch = event.text()
+                if ch and len(ch) == 1 and 32 <= ord(ch) <= 126 \
+                        and len(vs.prefix_input) < 6:
+                    vs.prefix_input += ch
+            return
 
         if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             self._stage_current_prefix()
@@ -318,3 +369,146 @@ class AppQt(App):
             ch = event.text()
             if ch and len(ch) == 1 and 32 <= ord(ch) <= 126 and len(vs.prefix_input) < 6:
                 vs.prefix_input += ch
+
+    # ------------------------------------------------------------------
+    # Menu action handlers
+    # ------------------------------------------------------------------
+
+    def _load_file(self, path: str) -> None:
+        from notispf.buffer import Buffer
+        from notispf.find_change import FindChangeEngine
+        from notispf.prefix import PrefixArea
+        self.buffer = Buffer(path) if os.path.exists(path) else self._new_buffer(path)
+        self.find_engine = FindChangeEngine(self.buffer)
+        self.prefix_area = PrefixArea(self.buffer, self.registry)
+        vs = self.vs
+        vs.cursor_line = 0
+        vs.cursor_col = 0
+        vs.top_line = 0
+        vs.col_offset = 0
+        vs.highlight_pattern = ""
+        vs.hex_mode = False
+        vs.help_mode = False
+        vs.prefix_mode = False
+        vs.command_mode = False
+        vs.command_input = ""
+        vs.message = f"Opened: {path}"
+        self.window.cmd_input.sync_text("")
+        self.window.editor.setFocus()
+        self._render()
+
+    def _menu_open(self) -> None:
+        from PyQt6.QtWidgets import QFileDialog, QMessageBox
+        if self.buffer.modified:
+            reply = QMessageBox.question(
+                self.window, "Unsaved Changes",
+                f"'{self.buffer.filepath}' has unsaved changes. Save before opening?",
+                QMessageBox.StandardButton.Save |
+                QMessageBox.StandardButton.Discard |
+                QMessageBox.StandardButton.Cancel,
+            )
+            if reply == QMessageBox.StandardButton.Cancel:
+                return
+            if reply == QMessageBox.StandardButton.Save:
+                try:
+                    self.buffer.save_file()
+                except Exception as e:
+                    QMessageBox.critical(self.window, "Save Failed", str(e))
+                    return
+        path, _ = QFileDialog.getOpenFileName(self.window, "Open File")
+        if path:
+            self._load_file(path)
+
+    def _menu_save(self) -> None:
+        try:
+            self.buffer.save_file()
+            self.vs.message = f"Saved: {self.buffer.filepath}"
+        except Exception as e:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.critical(self.window, "Save Failed", str(e))
+        self._render()
+
+    def _menu_save_as(self) -> None:
+        from PyQt6.QtWidgets import QFileDialog, QMessageBox
+        path, _ = QFileDialog.getSaveFileName(
+            self.window, "Save As", self.buffer.filepath or "")
+        if not path:
+            return
+        try:
+            self.buffer.save_file(path)
+            self.vs.message = f"Saved: {path}"
+        except Exception as e:
+            QMessageBox.critical(self.window, "Save Failed", str(e))
+        self._render()
+
+    def _menu_quit(self) -> None:
+        self._save_and_quit()
+        self._quit_flag = True
+        self._render()
+
+    def _menu_undo(self) -> None:
+        self.vs.message = "Undone" if self.buffer.undo() else "Nothing to undo"
+        self._render()
+
+    def _menu_redo(self) -> None:
+        self.vs.message = "Redone" if self.buffer.redo() else "Nothing to redo"
+        self._render()
+
+    def _menu_find(self) -> None:
+        vs = self.vs
+        if not vs.show_command:
+            vs.show_command = True
+        vs.command_mode = True
+        vs.message = ""
+        self.window.cmd_input.sync_text("FIND ")
+        self.window.cmd_input.setFocus()
+        self.window.cmd_input.setCursorPosition(5)
+        self._render()
+
+    def _menu_rfind(self) -> None:
+        vs = self.vs
+        pattern = self.find_engine._last_find
+        if not pattern:
+            vs.message = "No previous FIND"
+        else:
+            pos = self.find_engine.find_next(pattern)
+            if pos:
+                vs.cursor_line, vs.cursor_col = pos
+                self._scroll_to_cursor()
+                self._scroll_col_to_cursor()
+                vs.highlight_pattern = pattern
+                vs.message = f"Found: {pattern!r}"
+            else:
+                vs.highlight_pattern = ""
+                vs.message = f"Not found: {pattern!r}"
+        self._render()
+
+    def _menu_replace(self) -> None:
+        vs = self.vs
+        if not vs.show_command:
+            vs.show_command = True
+        vs.command_mode = True
+        vs.message = ""
+        self.window.cmd_input.sync_text("CHANGE ")
+        self.window.cmd_input.setFocus()
+        self.window.cmd_input.setCursorPosition(7)
+        self._render()
+
+    def _menu_cols(self) -> None:
+        self.vs.show_cols = not self.vs.show_cols
+        self._render()
+
+    def _menu_cmdbar(self) -> None:
+        vs = self.vs
+        vs.show_command = not vs.show_command
+        if not vs.show_command:
+            vs.command_mode = False
+            vs.command_input = ""
+            self.window.cmd_input.sync_text("")
+            self.window.editor.setFocus()
+        self._render()
+
+    def _menu_help(self) -> None:
+        self.vs.help_mode = True
+        self.vs.help_scroll = 0
+        self._render()

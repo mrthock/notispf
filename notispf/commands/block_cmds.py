@@ -71,5 +71,5 @@ def register(registry: CommandRegistry) -> None:
     registry.register_line_cmd(CommandSpec("MM", cmd_move_block, is_block=True, description="Move block to clipboard"))
     registry.register_line_cmd(CommandSpec("RR", cmd_repeat_block, is_block=True, description="Repeat block"))
     registry.register_line_cmd(CommandSpec("OO", cmd_overlay_block, is_block=True, description="Overlay clipboard onto block"))
-    registry.register_line_cmd(CommandSpec(">>", cmd_indent_right_block, is_block=True, description="Indent block right n columns"))
-    registry.register_line_cmd(CommandSpec("<<", cmd_indent_left_block, is_block=True, description="Indent block left n columns"))
+    registry.register_line_cmd(CommandSpec("))", cmd_indent_right_block, is_block=True, description="Indent block right n columns"))
+    registry.register_line_cmd(CommandSpec("((", cmd_indent_left_block, is_block=True, description="Indent block left n columns"))

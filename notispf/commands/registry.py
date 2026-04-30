@@ -43,14 +43,14 @@ class CommandRegistry:
         if not raw:
             return ("", 1)
 
-        # Block indent/dedent: >> or <<
-        if len(raw) >= 2 and raw[:2] in (">>", "<<"):
+        # Block indent/dedent: )) or ((
+        if len(raw) >= 2 and raw[:2] in ("))", "(("):
             suffix = raw[2:]
             count = int(suffix) if suffix.isdigit() else 1
             return (raw[:2], count)
 
-        # Single indent/dedent: > or <
-        if raw[0] in (">", "<"):
+        # Single indent/dedent: ) or (
+        if raw[0] in (")", "("):
             suffix = raw[1:]
             count = int(suffix) if suffix.isdigit() else 1
             return (raw[0], count)

@@ -6,9 +6,9 @@ from PyQt6.QtWidgets import (
     QLabel, QLineEdit, QAbstractScrollArea, QApplication,
 )
 from PyQt6.QtCore import Qt, QRect, QTimer, QEvent
-from PyQt6.QtGui import QPainter, QColor, QFont, QFontMetrics, QPalette, QKeyEvent
+from PyQt6.QtGui import QPainter, QColor, QFont, QFontMetrics, QPalette, QKeyEvent, QAction, QKeySequence
 
-from notispf.display import Display, PREFIX_WIDTH, SEP_WIDTH
+from notispf.display import Display, PREFIX_WIDTH, SEP_WIDTH, TOP_SENTINEL, BOT_SENTINEL
 
 # ── Colour palette ────────────────────────────────────────────────────────────
 _BG           = QColor("#1e1e1e")
@@ -124,10 +124,24 @@ class EditorViewport(QAbstractScrollArea):
 
         rows = self.content_rows()
         view = Display.build_view(self.app.buffer, vs.top_line, rows - ruler_offset)
-        if sr >= len(view) or view[sr][0] != "line":
+        if sr >= len(view):
             return
 
-        _, buf_idx = view[sr]
+        entry = view[sr]
+        if entry[0] in ("top", "bot"):
+            sentinel_key = TOP_SENTINEL if entry[0] == "top" else BOT_SENTINEL
+            vs.cursor_line = sentinel_key
+            vs.prefix_mode = True
+            vs.prefix_input = self.app.prefix_area._pending.get(sentinel_key, "")
+            vs.message = "Type I to insert — Enter to execute, Esc to cancel"
+            self.app._render()
+            self.setFocus()
+            return
+
+        if entry[0] != "line":
+            return
+
+        _, buf_idx = entry
         vs.cursor_line = buf_idx
 
         if event.position().x() < prefix_w:
@@ -199,6 +213,8 @@ class EditorViewport(QAbstractScrollArea):
             p.setPen(_RULER_FG)
             p.drawText(text_x, asc, ruler)
 
+        sentinel_offset = 1 if vs.top_line == 0 else 0
+
         for sr in range(rows - ruler_offset):
             y        = (sr + ruler_offset) * lh
             baseline = y + asc
@@ -212,6 +228,23 @@ class EditorViewport(QAbstractScrollArea):
                 continue
 
             entry = view[sr]
+
+            # Sentinel rows (top / bottom of data)
+            if entry[0] in ("top", "bot"):
+                is_top = entry[0] == "top"
+                sentinel_key = TOP_SENTINEL if is_top else BOT_SENTINEL
+                label = "- - - TOP OF DATA - - -" if is_top \
+                    else "- - - BOTTOM OF DATA - - -"
+                pfx = vs.pending_prefixes.get(sentinel_key, "")
+                overlay = (pfx + "******"[len(pfx):])[:PREFIX_WIDTH] \
+                    if pfx else "******"
+                p.setPen(_FOLD)
+                p.drawText(0, baseline, overlay)
+                p.setPen(_SEP)
+                p.drawText(sep_x, baseline, "|")
+                p.setPen(_FOLD)
+                p.drawText(text_x, baseline, label)
+                continue
 
             # Fold row
             if entry[0] == "fold":
@@ -258,7 +291,13 @@ class EditorViewport(QAbstractScrollArea):
 
         # Hardware cursor (underline bar)
         if self._blink_on and not vs.command_mode:
-            sr = vs.cursor_line - vs.top_line + ruler_offset
+            if vs.cursor_line == TOP_SENTINEL:
+                sr = ruler_offset
+            elif vs.cursor_line == BOT_SENTINEL:
+                sr = next((i + ruler_offset for i, e in enumerate(view)
+                           if e[0] == "bot"), -1)
+            else:
+                sr = vs.cursor_line - vs.top_line + ruler_offset + sentinel_offset
             if 0 <= sr < rows:
                 cy = sr * lh + lh - 2
                 if vs.prefix_mode:
@@ -292,6 +331,8 @@ class EditorViewport(QAbstractScrollArea):
         pa = self.app.prefix_area
         if buf_idx in vs.pending_prefixes:
             return vs.pending_prefixes[buf_idx][:PREFIX_WIDTH]
+        if buf_idx < 0:  # sentinel — rendered separately, guard just in case
+            return "******"
         if vs.open_block_line == buf_idx:
             return vs.open_block_cmd[:PREFIX_WIDTH]
         return pa.get_display_content(buf_idx, buf_idx + 1)
@@ -470,6 +511,89 @@ class NotispfWindow(QMainWindow):
             "font-family:Monospace; padding:2px 6px;")
         layout.addWidget(self.msg_lbl)
 
+        self._build_menu()
+
+    def _build_menu(self):
+        self.menuBar().setStyleSheet(
+            "QMenuBar { background:#2d2d2d; color:#d4d4d4; }"
+            "QMenuBar::item:selected { background:#3d3d3d; }"
+            "QMenu { background:#2d2d2d; color:#d4d4d4; border:1px solid #555; }"
+            "QMenu::item:selected { background:#3d6b9a; }"
+            "QMenu::separator { height:1px; background:#555; margin:3px 6px; }"
+        )
+
+        # ── File ──────────────────────────────────────────────────────────────
+        file_menu = self.menuBar().addMenu("File")
+
+        open_act = QAction("Open...", self)
+        open_act.setShortcut(QKeySequence.StandardKey.Open)
+        open_act.triggered.connect(self.app._menu_open)
+        file_menu.addAction(open_act)
+
+        save_act = QAction("Save", self)
+        save_act.setShortcut(QKeySequence.StandardKey.Save)
+        save_act.triggered.connect(self.app._menu_save)
+        file_menu.addAction(save_act)
+
+        save_as_act = QAction("Save As...", self)
+        save_as_act.setShortcut(QKeySequence.StandardKey.SaveAs)
+        save_as_act.triggered.connect(self.app._menu_save_as)
+        file_menu.addAction(save_as_act)
+
+        file_menu.addSeparator()
+
+        quit_act = QAction("Quit", self)
+        quit_act.setShortcut(QKeySequence.StandardKey.Quit)
+        quit_act.triggered.connect(self.app._menu_quit)
+        file_menu.addAction(quit_act)
+
+        # ── Edit ──────────────────────────────────────────────────────────────
+        edit_menu = self.menuBar().addMenu("Edit")
+
+        undo_act = QAction("Undo\tCtrl+Z", self)
+        undo_act.triggered.connect(self.app._menu_undo)
+        edit_menu.addAction(undo_act)
+
+        redo_act = QAction("Redo\tCtrl+Y", self)
+        redo_act.triggered.connect(self.app._menu_redo)
+        edit_menu.addAction(redo_act)
+
+        edit_menu.addSeparator()
+
+        find_act = QAction("Find...", self)
+        find_act.setShortcut(QKeySequence.StandardKey.Find)
+        find_act.triggered.connect(self.app._menu_find)
+        edit_menu.addAction(find_act)
+
+        rfind_act = QAction("Find Next\tF5", self)
+        rfind_act.triggered.connect(self.app._menu_rfind)
+        edit_menu.addAction(rfind_act)
+
+        replace_act = QAction("Replace...", self)
+        replace_act.setShortcut(QKeySequence.StandardKey.Replace)
+        replace_act.triggered.connect(self.app._menu_replace)
+        edit_menu.addAction(replace_act)
+
+        # ── View ──────────────────────────────────────────────────────────────
+        view_menu = self.menuBar().addMenu("View")
+
+        self._cols_action = QAction("Column Ruler", self)
+        self._cols_action.setCheckable(True)
+        self._cols_action.triggered.connect(self.app._menu_cols)
+        view_menu.addAction(self._cols_action)
+
+        self._cmdbar_action = QAction("Command Bar", self)
+        self._cmdbar_action.setCheckable(True)
+        self._cmdbar_action.setChecked(True)
+        self._cmdbar_action.triggered.connect(self.app._menu_cmdbar)
+        view_menu.addAction(self._cmdbar_action)
+
+        view_menu.addSeparator()
+
+        help_act = QAction("Help\tF1", self)
+        help_act.triggered.connect(self.app._menu_help)
+        view_menu.addAction(help_act)
+
     # ── Event filter (command bar special keys) ───────────────────────────────
 
     def eventFilter(self, obj, event):
@@ -564,6 +688,9 @@ class NotispfWindow(QMainWindow):
                 "background:transparent; color:#888888;"
                 " font-family:Monospace; padding:2px 6px;")
             self.msg_lbl.setText("")
+
+        self._cols_action.setChecked(vs.show_cols)
+        self._cmdbar_action.setChecked(vs.show_command)
 
         self.editor._sync_scrollbar()
         self.editor.viewport().update()

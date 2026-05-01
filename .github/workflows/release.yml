@@ -84,11 +84,20 @@ jobs:
 
       - name: Build Qt .app bundle
         run: |
+          version="${{ github.ref_name }}"
+          version="${version#v}"
           pyinstaller --windowed --name notispf-qt \
             --icon assets/icon.icns \
             --osx-bundle-identifier com.mrthock.notispf \
             --collect-all PyQt6 \
             notispf/_qt_main.py
+          # PyInstaller defaults CFBundleShortVersionString to 0.0.0 — fix it
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${version}" dist/notispf-qt.app/Contents/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${version}" dist/notispf-qt.app/Contents/Info.plist
+          # Ad-hoc sign the entire bundle so every dylib/so has a valid PAC
+          # signature — without this, CFBundleCopyBundleURL crashes on Apple
+          # Silicon under macOS's __CFCheckCFInfoPACSignature check.
+          codesign --force --deep --sign - dist/notispf-qt.app
 
       - name: Build curses binary
         run: pyinstaller --onefile --name notispf-macos notispf/__main__.py

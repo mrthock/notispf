@@ -298,6 +298,10 @@ class AppQt(App):
                 if vs.show_command:
                     vs.command_mode = True
                     self.window.cmd_input.setFocus()
+            elif key in (Qt.Key.Key_F7, Qt.Key.Key_PageUp):
+                self._move_cursor(-self._content_rows())
+            elif key in (Qt.Key.Key_F8, Qt.Key.Key_PageDown):
+                self._move_cursor(self._content_rows())
             elif key == Qt.Key.Key_Backspace:
                 vs.prefix_input = vs.prefix_input[:-1]
             else:

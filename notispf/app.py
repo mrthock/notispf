@@ -549,6 +549,10 @@ class App:
                     # Top sentinel, Up → command bar
                     if vs.show_command:
                         vs.command_mode = True
+            elif key in (curses.KEY_PPAGE, curses.KEY_F7):
+                self._move_cursor(-self._content_rows())
+            elif key in (curses.KEY_NPAGE, curses.KEY_F8):
+                self._move_cursor(self._content_rows())
             elif key in (curses.KEY_BACKSPACE, 127):
                 vs.prefix_input = vs.prefix_input[:-1]
             elif 32 <= key <= 126 and len(vs.prefix_input) < 6:
@@ -779,7 +783,8 @@ class App:
 
         if vs.cursor_line == TOP_SENTINEL:
             if delta > 0:
-                vs.cursor_line = self.buffer.next_visible(0, 1) \
+                target = min(delta - 1, len(self.buffer) - 1) if self.buffer.lines else 0
+                vs.cursor_line = self.buffer.next_visible(target, 1) \
                     if self.buffer.lines else BOT_SENTINEL
                 vs.prefix_mode = False
                 vs.prefix_input = ""
@@ -789,8 +794,8 @@ class App:
 
         if vs.cursor_line == BOT_SENTINEL:
             if delta < 0:
-                last = max(0, len(self.buffer) - 1)
-                vs.cursor_line = self.buffer.next_visible(last, -1) \
+                target = max(0, len(self.buffer) + delta)
+                vs.cursor_line = self.buffer.next_visible(target, -1) \
                     if self.buffer.lines else TOP_SENTINEL
                 vs.prefix_mode = False
                 vs.prefix_input = ""

@@ -9,6 +9,7 @@ from PyQt6.QtCore import Qt, QRect, QTimer, QEvent
 from PyQt6.QtGui import QPainter, QColor, QFont, QFontMetrics, QPalette, QKeyEvent, QAction, QKeySequence
 
 from notispf.display import Display, PREFIX_WIDTH, SEP_WIDTH, TOP_SENTINEL, BOT_SENTINEL
+from notispf import __version__
 
 # ── Colour palette ────────────────────────────────────────────────────────────
 _BG           = QColor("#1e1e1e")
@@ -91,6 +92,12 @@ class EditorViewport(QAbstractScrollArea):
 
     def wheelEvent(self, event):
         delta = -event.angleDelta().y() // 40
+        vs = self.app.vs
+        # Clamp upward scroll: don't jump to TOP_SENTINEL (command line) unless
+        # cursor is already at line 0. A large negative delta would otherwise skip
+        # straight past line 0 on a single scroll notch.
+        if delta < 0 and vs.cursor_line > 0:
+            delta = max(delta, -vs.cursor_line)
         self.app._move_cursor(delta)
         self.app._render()
 
@@ -652,6 +659,32 @@ class NotispfWindow(QMainWindow):
                 self.app._render()
                 return True
 
+            if key in (Qt.Key.Key_F7, Qt.Key.Key_PageUp):
+                raw = vs.command_input.strip().upper()
+                if raw in ("MAX", "M"):
+                    vs.command_input = ""
+                    self.cmd_input.sync_text("")
+                    buf = self.app.buffer
+                    if buf.lines:
+                        vs.cursor_line = buf.next_visible(0, 1)
+                        vs.top_line = 0
+                    vs.message = "TOP OF DATA"
+                    self.app._render()
+                    return True
+
+            if key in (Qt.Key.Key_F8, Qt.Key.Key_PageDown):
+                raw = vs.command_input.strip().upper()
+                if raw in ("MAX", "M"):
+                    vs.command_input = ""
+                    self.cmd_input.sync_text("")
+                    buf = self.app.buffer
+                    if buf.lines:
+                        vs.cursor_line = buf.next_visible(len(buf) - 1, -1)
+                        self.app._scroll_to_cursor()
+                    vs.message = "BOTTOM OF DATA"
+                    self.app._render()
+                    return True
+
         return super().eventFilter(obj, event)
 
     # ── Refresh ───────────────────────────────────────────────────────────────
@@ -669,7 +702,7 @@ class NotispfWindow(QMainWindow):
         # Status bar
         hex_i = " [HEX]" if vs.hex_mode else ""
         pos   = f"  Line {vs.cursor_line + 1}/{len(buf)}  Col {vs.cursor_col + 1}"
-        self.status_lbl.setText(f" notispf  {name}{mod}{hex_i}{pos}")
+        self.status_lbl.setText(f" notispf {__version__}  {name}{mod}{hex_i}{pos}")
 
         # Command bar visibility and focus
         self.cmd_widget.setVisible(vs.show_command)

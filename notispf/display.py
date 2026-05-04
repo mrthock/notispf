@@ -2,6 +2,7 @@
 from __future__ import annotations
 import curses
 from dataclasses import dataclass, field
+from notispf import __version__
 
 
 # Custom color IDs (above the 8 standard colors)
@@ -131,7 +132,7 @@ class Display:
             position = "  BOTTOM OF DATA  "
         else:
             position = f"  Line {vs.cursor_line + 1}/{len(buffer)}  Col {vs.cursor_col + 1}"
-        left = f" notispf  {filename}{modified}{hex_ind}"
+        left = f" notispf {__version__}  {filename}{modified}{hex_ind}"
         right = position + "  "
         padding = cols - len(left) - len(right)
         if padding < 0:
@@ -381,6 +382,7 @@ class Display:
         "  F6          Focus/hide command bar F12       Exit without saving",
         "  Ctrl+Z      Undo                  Ctrl+Y    Redo",
         "  F7  / PgUp  Scroll up             F8/PgDn   Scroll down",
+        "  MAX (or M) + F7  Top of data         MAX + F8  Bottom of data",
         "  F10         Scroll left           F11       Scroll right",
         "  Tab         Move down into prefix  Shift+Tab Move up into prefix",
         "  Tab (cmd)   Go to prefix of line 1  Down (cmd) Return to text",

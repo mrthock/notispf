@@ -17,6 +17,7 @@ from notispf.prefix import PrefixArea
 _CMD_ALIASES: dict[str, str] = {
     "F": "FIND", "C": "CHANGE", "CAN": "CANCEL",
     "RESET": "CLEAR", "RES": "CLEAR",
+    "M": "MAX",
 }
 
 
@@ -271,6 +272,22 @@ class App:
             vs.prefix_input = self.prefix_area._pending.get(0, "")
             self._scroll_to_cursor()
             vs.message = "Type prefix command, Enter to execute, Esc to cancel"
+        elif key in (curses.KEY_F7, curses.KEY_PPAGE):
+            raw = vs.command_input.strip().upper()
+            if _CMD_ALIASES.get(raw, raw) == "MAX":
+                vs.command_input = ""
+                if self.buffer.lines:
+                    vs.cursor_line = self.buffer.next_visible(0, 1)
+                    vs.top_line = 0
+                vs.message = "TOP OF DATA"
+        elif key in (curses.KEY_F8, curses.KEY_NPAGE):
+            raw = vs.command_input.strip().upper()
+            if _CMD_ALIASES.get(raw, raw) == "MAX":
+                vs.command_input = ""
+                if self.buffer.lines:
+                    vs.cursor_line = self.buffer.next_visible(len(self.buffer) - 1, -1)
+                    self._scroll_to_cursor()
+                vs.message = "BOTTOM OF DATA"
         elif key == curses.KEY_BACKSPACE or key == 127:
             vs.command_input = vs.command_input[:-1]
         elif 32 <= key <= 126:
@@ -293,6 +310,9 @@ class App:
 
         cmd = _CMD_ALIASES.get(tokens[0].upper(), tokens[0].upper())
         upper_tokens = [t.upper() for t in tokens]
+
+        if cmd == "MAX":
+            return "MAX: press F7 for top of data, F8 for bottom"
 
         if cmd == "UNDO":
             return "Undone" if self.buffer.undo() else "Nothing to undo"

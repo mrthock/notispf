@@ -7,8 +7,39 @@ on:
 
 jobs:
 
+  # ── Version sanity check ────────────────────────────────────────────────────
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check version matches tag
+        run: |
+          TAG="${{ github.ref_name }}"
+          TAG_VER="${TAG#v}"
+
+          INIT_VER=$(python -c "import re; m=re.search(r'__version__\s*=\s*[\"\'](.*?)[\"\']', open('notispf/__init__.py').read()); print(m.group(1))")
+          TOML_VER=$(python -c "import re; m=re.search(r'^version\s*=\s*[\"\'](.*?)[\"\']', open('pyproject.toml').read(), re.M); print(m.group(1))")
+
+          echo "Tag version:            $TAG_VER"
+          echo "__init__.py version:    $INIT_VER"
+          echo "pyproject.toml version: $TOML_VER"
+
+          if [ "$INIT_VER" != "$TAG_VER" ]; then
+            echo "ERROR: notispf/__init__.py has version $INIT_VER but tag is $TAG_VER"
+            exit 1
+          fi
+
+          if [ "$TOML_VER" != "$TAG_VER" ]; then
+            echo "ERROR: pyproject.toml has version $TOML_VER but tag is $TAG_VER"
+            exit 1
+          fi
+
+          echo "Version check passed: $TAG_VER"
+
   # ── Linux: AppImage + curses binary ────────────────────────────────────────
   build-linux:
+    needs: [validate]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -59,6 +90,7 @@ jobs:
 
   # ── macOS: .dmg + curses binary ────────────────────────────────────────────
   build-macos:
+    needs: [validate]
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -131,6 +163,7 @@ jobs:
 
   # ── Windows: installer + curses .exe ───────────────────────────────────────
   build-windows:
+    needs: [validate]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4

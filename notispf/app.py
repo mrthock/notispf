@@ -46,7 +46,7 @@ class App:
             screen_cols=80,
         )
         self._quit_flag = False
-        self._lexer = syntax.get_lexer(filepath)
+        self._lexer = None      # None = HILIGHT OFF (default)
         self._syntax_gen = -1   # last buffer generation syntax_spans was built for
         self._syntax_spans: list | None = None
 
@@ -380,6 +380,26 @@ class App:
         if cmd == "COLS":
             self.vs.show_cols = not self.vs.show_cols
             return "Column ruler on" if self.vs.show_cols else "Column ruler off"
+
+        if cmd == "HILIGHT":
+            arg = upper_tokens[1] if len(upper_tokens) > 1 else ""
+            if arg == "OFF" or not arg:
+                self._lexer = None
+                self._syntax_gen = -1
+                return "Highlighting off"
+            if arg == "ON":
+                self._lexer = syntax.get_lexer(self.buffer.filepath or "")
+                self._syntax_gen = -1
+                if self._lexer is None:
+                    return "HILIGHT ON: cannot detect language from filename — use HILIGHT <language>"
+                return f"Highlighting: {self._lexer.name}"
+            # Specific language name — pass directly to Pygments
+            try:
+                self._lexer = syntax.get_lexer_by_alias(arg.lower())
+                self._syntax_gen = -1
+                return f"Highlighting: {self._lexer.name}"
+            except syntax.LexerNotFound:
+                return f"HILIGHT: unknown language '{arg}' — see pygments.org/docs/lexers"
 
         if cmd in ("CANCEL", "QUIT"):
             self._quit_flag = True

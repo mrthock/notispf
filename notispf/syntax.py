@@ -43,6 +43,25 @@ def get_lexer(filename: str):
         return None
 
 
+def get_lexer_by_alias(alias: str):
+    """Return a Pygments lexer by alias name, or None if not found.
+
+    Raises ClassNotFound (re-exported) so the caller can show a useful message.
+    """
+    if not _AVAILABLE:
+        return None
+    from pygments.lexers import get_lexer_by_name
+    return get_lexer_by_name(alias)
+
+
+# Re-export so callers don't need to import pygments directly
+if _AVAILABLE:
+    from pygments.util import ClassNotFound as LexerNotFound
+else:
+    class LexerNotFound(Exception):  # type: ignore
+        pass
+
+
 def build_spans(lines, lexer) -> list[list[tuple[int, int, str]]]:
     """Tokenize all lines and return per-line span lists.
 

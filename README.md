@@ -279,6 +279,11 @@ DELETE NX ALL
 | `COLS` | Toggle the column ruler on/off |
 | `CLEAR` / `RESET` / `RES` | Clear the current search highlight |
 | `HELP` | Open the help screen |
+| `HILIGHT OFF` | Disable syntax highlighting (default) |
+| `HILIGHT ON` | Enable syntax highlighting, language detected from file extension |
+| `HILIGHT <language>` | Force a specific language (e.g. `HILIGHT JCL`, `HILIGHT REXX`, `HILIGHT COBOL`, `HILIGHT SQL`, `HILIGHT PYTHON`) |
+
+Syntax highlighting is powered by [Pygments](https://pygments.org). For a full list of supported language names, see the [Pygments lexer list](https://pygments.org/docs/lexers/).
 
 ### Find and Change
 

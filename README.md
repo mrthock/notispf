@@ -34,6 +34,28 @@ chmod +x notispf-linux   # or notispf-macos
 mv notispf-linux ~/.local/bin/notispf   # optionally add to PATH
 ```
 
+### Arch Linux / Endeavour OS / Manjaro (pacman)
+
+A PKGBUILD is provided in [`packaging/PKGBUILD`](packaging/PKGBUILD). It installs the pre-built binary and registers it with pacman so upgrades and removal work normally.
+
+```bash
+curl -O https://raw.githubusercontent.com/mrthock/notispf/main/packaging/PKGBUILD
+makepkg -si
+```
+
+Or if you already have the repo cloned:
+
+```bash
+cd packaging
+makepkg -si
+```
+
+To uninstall:
+
+```bash
+pacman -R notispf
+```
+
 ### Via pip
 
 ```bash

@@ -52,7 +52,11 @@ class App:
         return buf
 
     def run(self) -> None:
-        curses.wrapper(self._main)
+        os.system('tput smcup')
+        try:
+            curses.wrapper(self._main)
+        finally:
+            os.system('tput rmcup')
 
     def _main(self, stdscr) -> None:
         self.display = Display(stdscr)
@@ -60,6 +64,9 @@ class App:
 
         while True:
             key = stdscr.getch()
+            if key == curses.KEY_RESIZE:
+                self._render()
+                continue
             if self._handle_key(key) or self._quit_flag:
                 break
             self._render()

@@ -299,3 +299,22 @@ Icons are generated from `assets/icon.svg` by `scripts/make_icons.py` (requires 
 
 The `display.py` / `display_qt.py` split is deliberate: all rendering is isolated in those
 two files so that porting to a new UI toolkit only requires replacing the display layer.
+
+## Release checklist
+
+1. Bump version in `notispf/__init__.py` and `pyproject.toml` (must match exactly).
+2. Commit the version bump.
+3. Tag and push:
+   ```bash
+   git tag v1.x.x && git push origin main && git push origin v1.x.x
+   ```
+4. GitHub Actions builds all binaries and publishes to PyPI automatically. The `validate`
+   job will fail the release if the versions in the two files don't match the tag.
+5. Once the release is published, update `packaging/PKGBUILD`:
+   - Set `pkgver` to the new version.
+   - Regenerate the checksum:
+     ```bash
+     curl -sL https://github.com/mrthock/notispf/releases/download/v1.x.x/notispf-linux | sha256sum
+     ```
+   - Paste the result into `sha256sums=('...')`.
+   - Commit and push the updated PKGBUILD.

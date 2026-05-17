@@ -1,6 +1,6 @@
 # notispf
 
-A text editor inspired by the ISPF editor from z/OS mainframes, available as a terminal app on all platforms and a desktop GUI on Linux and Windows.
+A text editor inspired by the ISPF editor from z/OS mainframes, available as a terminal app on all platforms, a desktop GUI on Linux and Windows, and a native Swift app on macOS.
 Brings the prefix command area that ISPF users know and love to Linux, macOS, and Windows.
 
 ## Installation
@@ -12,7 +12,7 @@ Go to the [Releases page](https://github.com/mrthock/notispf/releases) and downl
 | Platform | GUI | Terminal CLI |
 |----------|-----|--------------|
 | Linux    | `notispf-qt-x86_64.AppImage` | `notispf-linux` |
-| macOS    | — (coming soon) | `notispf-macos` |
+| macOS    | [notispf-v1.0.dmg](https://github.com/mrthock/notispf/releases/tag/v1.0-mac) | `notispf-macos` |
 | Windows  | `notispf-qt-setup.exe` | `notispf-windows.exe` |
 
 **Linux AppImage:**
@@ -21,7 +21,13 @@ chmod +x notispf-qt-x86_64.AppImage
 ./notispf-qt-x86_64.AppImage myfile.txt
 ```
 
-> **macOS note:** `xattr -d com.apple.quarantine ./notispf-macos`
+**macOS Native App (v1.0):**
+
+Download `notispf-v1.0.dmg` from the [v1.0-mac release](https://github.com/mrthock/notispf/releases/tag/v1.0-mac), open the DMG, and drag **notispf.app** to your Applications folder. Then launch it from Applications or Spotlight.
+
+> **macOS note:** If macOS shows a security warning on first launch, right-click the app → **Open** → **Open** to bypass Gatekeeper. The app is signed with a Developer ID certificate.
+
+> **macOS Terminal CLI note:** `xattr -d com.apple.quarantine ./notispf-macos`
 
 **Windows installer:** Run `notispf-qt-setup.exe`. Creates a Start Menu entry and an optional desktop shortcut.
 
@@ -73,6 +79,12 @@ pip install -e ".[qt]"    # terminal + GUI
 ```
 
 ## Usage
+
+**macOS Native App:**
+```
+Launch notispf.app from Applications or Spotlight.
+Use File → Open (Cmd+O) to open a file, or pass a path as an argument from the terminal.
+```
 
 **GUI (PyQt6):**
 ```bash

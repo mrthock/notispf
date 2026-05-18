@@ -1,6 +1,9 @@
 """Curses rendering engine — the only file that touches curses."""
 from __future__ import annotations
-import curses
+try:
+    import curses
+except ImportError:
+    curses = None  # type: ignore  # not available on Windows; Display is never instantiated there
 from dataclasses import dataclass, field
 from notispf import __version__
 

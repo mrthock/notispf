@@ -613,21 +613,24 @@ class App:
                 self._move_cursor(-self._content_rows())
             elif key in (curses.KEY_NPAGE, curses.KEY_F8):
                 self._move_cursor(self._content_rows())
-            elif key == ord('\t'):  # Tab: exit to first/last real line
+            elif key == ord('\t'):  # Tab: TOP_SENTINEL→first line, BOT_SENTINEL→command bar
                 vs.prefix_mode = False
                 vs.prefix_input = ""
                 vs.message = ""
                 if vs.cursor_line == TOP_SENTINEL:
                     vs.cursor_line = self.buffer.next_visible(0, 1) \
                         if self.buffer.lines else BOT_SENTINEL
-            elif key == curses.KEY_BTAB:  # Shift+Tab: exit to command bar or last line
+                else:  # BOT_SENTINEL → command bar
+                    if vs.show_command:
+                        vs.command_mode = True
+            elif key == curses.KEY_BTAB:  # Shift+Tab: TOP_SENTINEL→command bar, BOT_SENTINEL→last line
                 vs.prefix_mode = False
                 vs.prefix_input = ""
                 vs.message = ""
                 if vs.cursor_line == TOP_SENTINEL:
                     if vs.show_command:
                         vs.command_mode = True
-                else:  # BOT_SENTINEL
+                else:  # BOT_SENTINEL → last real line
                     if self.buffer.lines:
                         vs.cursor_line = self.buffer.next_visible(
                             len(self.buffer) - 1, -1)
@@ -908,7 +911,8 @@ class App:
 
     def _scroll_to_cursor(self) -> None:
         vs = self.vs
-        content_rows = self._content_rows() - (1 if vs.show_command else 0)
+        sentinel_offset = 1 if vs.top_line == 0 and self.buffer.lines else 0
+        content_rows = self._content_rows() - sentinel_offset
         if vs.cursor_line == TOP_SENTINEL:
             vs.top_line = 0
             return

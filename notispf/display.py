@@ -487,7 +487,7 @@ class Display:
             else:
                 screen_row = vs.cursor_line - vs.top_line + first_row + sentinel_offset
             screen_col = min(len(vs.prefix_input), PREFIX_WIDTH - 1)
-            if 0 < screen_row < rows - 1:
+            if 0 < screen_row < rows - 2:
                 try:
                     self.stdscr.move(screen_row, screen_col)
                 except curses.error:

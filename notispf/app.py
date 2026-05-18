@@ -224,13 +224,12 @@ class App:
             vs.prefix_input = self.prefix_area._pending.get(vs.cursor_line, "")
             vs.message = "Type prefix command, Enter to execute, Esc to cancel"
 
-        # Shift+Tab: go to command bar if already at TOP_SENTINEL, otherwise move up into prefix
+        # Shift+Tab: text(N) -> prefix(N), mirroring Tab which goes prefix(N) -> text(N)
         elif key == curses.KEY_BTAB:
             if vs.show_command and vs.cursor_line == TOP_SENTINEL:
                 vs.command_mode = True
                 vs.message = ""
             else:
-                self._move_cursor(-1, skip_excluded=False)
                 vs.prefix_mode = True
                 vs.prefix_input = self.prefix_area._pending.get(vs.cursor_line, "")
                 vs.message = "Type prefix command, Enter to execute, Esc to cancel"

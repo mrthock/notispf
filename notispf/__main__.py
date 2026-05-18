@@ -11,12 +11,8 @@ def main():
 
 
 def main_qt():
-    try:
-        from notispf.app_qt import AppQt
-        from PyQt6.QtWidgets import QApplication, QFileDialog
-    except ImportError:
-        print("PyQt6 is required: pip install notispf[qt]")
-        sys.exit(1)
+    from notispf.app_qt import AppQt
+    from PyQt6.QtWidgets import QApplication, QFileDialog
 
     if len(sys.argv) >= 2:
         filepath = sys.argv[1]

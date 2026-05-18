@@ -1,6 +1,9 @@
 """Top-level application controller."""
 from __future__ import annotations
-import curses
+try:
+    import curses
+except ImportError:
+    curses = None  # type: ignore  # not available on Windows; App is never instantiated there
 import os
 import shlex
 

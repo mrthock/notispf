@@ -127,13 +127,13 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install ".[qt]" pyinstaller
+        run: pip install ".[qt]" pyinstaller windows-curses
 
       - name: Build Qt .exe
         run: pyinstaller --onefile --windowed --name notispf-qt --icon assets/icon.ico --collect-all PyQt6 notispf/_qt_main.py
 
       - name: Build curses .exe
-        run: pyinstaller --onefile --name notispf-windows notispf/__main__.py
+        run: pyinstaller --onefile --name notispf-windows --collect-all windows_curses notispf/__main__.py
 
       - name: Create installer
         shell: pwsh

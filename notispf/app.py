@@ -5,6 +5,7 @@ try:
 except ImportError:
     curses = None  # type: ignore  # not available on Windows; App is never instantiated there
 import os
+import sys
 import shlex
 
 from notispf.buffer import Buffer, Line
@@ -59,11 +60,13 @@ class App:
         return buf
 
     def run(self) -> None:
-        os.system('tput smcup')
+        if sys.platform != 'win32':
+            os.system('tput smcup')
         try:
             curses.wrapper(self._main)
         finally:
-            os.system('tput rmcup')
+            if sys.platform != 'win32':
+                os.system('tput rmcup')
 
     def _main(self, stdscr) -> None:
         self.display = Display(stdscr)

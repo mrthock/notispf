@@ -12,16 +12,9 @@ def main():
 
 def main_qt():
     from notispf.app_qt import AppQt
-    from PyQt6.QtWidgets import QApplication, QFileDialog
+    from PyQt6.QtWidgets import QApplication
 
-    if len(sys.argv) >= 2:
-        filepath = sys.argv[1]
-    else:
-        qt_app = QApplication(sys.argv)
-        filepath, _ = QFileDialog.getOpenFileName(None, "Open file — notispf")
-        if not filepath:
-            sys.exit(0)
-
+    filepath = sys.argv[1] if len(sys.argv) >= 2 else "Untitled.txt"
     app = AppQt(filepath)
     app.run()
 

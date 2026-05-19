@@ -12,7 +12,7 @@ Go to the [Releases page](https://github.com/mrthock/notispf/releases) and downl
 | Platform | GUI | Terminal CLI |
 |----------|-----|--------------|
 | Linux    | `notispf-qt-x86_64.AppImage` | `notispf-linux` |
-| macOS    | [notispf-v1.0.dmg](https://github.com/mrthock/notispf/releases/tag/v1.0-mac) | `notispf-macos` |
+| macOS    | `notispf-v1.0.dmg` | `notispf-macos` |
 | Windows  | `notispf-qt-setup.exe` | `notispf-windows.exe` |
 
 **Linux AppImage:**
